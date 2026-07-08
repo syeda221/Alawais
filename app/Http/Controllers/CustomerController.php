@@ -12,7 +12,7 @@ class CustomerController extends Controller
 {
     public function index()
     {
-        $customers = Customer::where('customer_type', '!=', 'Dual Party')->orWhereNull('customer_type')->latest()->get();
+        $customers = Customer::with('ledger')->where('customer_type', '!=', 'Dual Party')->orWhereNull('customer_type')->latest()->get();
         return view('admin_panel.customers.index', compact('customers'));
     }
 
@@ -297,9 +297,51 @@ class CustomerController extends Controller
     public function update(Request $request, $id)
     {
         $customer = Customer::findOrFail($id);
-        $data = $request->except('_token');
+        
+        $data = $request->validate([
+            'customer_name'      => 'required',
+            'customer_name_ur'   => 'nullable',
+            'cnic'               => 'nullable',
+            'filer_type'         => 'nullable',
+            'zone'               => 'nullable',
+            'contact_person'     => 'nullable',
+            'mobile'             => 'nullable',
+            'email_address'      => 'nullable',
+            'contact_person_2'   => 'nullable',
+            'mobile_2'           => 'nullable',
+            'email_address_2'    => 'nullable',
+            'opening_balance'    => 'nullable|numeric',
+            'address'            => 'nullable',
+            'customer_type'      => 'nullable',
+        ]);
+
+        $oldOpeningBalance = (float)($customer->opening_balance ?? 0);
+        $newOpeningBalance = (float)($request->input('opening_balance') ?? 0);
 
         $customer->update($data);
+
+        // Update Customer Ledger
+        if ($oldOpeningBalance != $newOpeningBalance) {
+            $ledger = CustomerLedger::where('customer_id', $customer->id)->latest('id')->first();
+            if ($ledger) {
+                $difference = $newOpeningBalance - $oldOpeningBalance;
+                $ledger->update([
+                    'opening_balance' => $newOpeningBalance,
+                    'closing_balance' => (float)$ledger->closing_balance + $difference,
+                ]);
+            } else {
+                if ($newOpeningBalance != 0) {
+                    CustomerLedger::create([
+                        'customer_id'      => $customer->id,
+                        'admin_or_user_id' => Auth::id(),
+                        'previous_balance' => 0,
+                        'opening_balance'  => $newOpeningBalance,
+                        'closing_balance'  => $newOpeningBalance,
+                    ]);
+                }
+            }
+        }
+
         return redirect()->route('customers.index')->with('success', 'Customer updated successfully.');
     }
 

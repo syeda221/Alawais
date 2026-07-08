@@ -125,17 +125,45 @@
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
             success: function (response) {
+                if (response['error'] != undefined) {
+                    Swal.fire({
+                        title: "Error",
+                        text: response.error,
+                        icon: "error"
+                    });
+                    return false;
+                }
                 if (response['reload'] != undefined) {
-                    showAlert("Success", response.success, "success");
-                    window.location.reload();
+                    Swal.fire({
+                        title: "Success",
+                        text: response.success,
+                        icon: "success"
+                    }).then(() => {
+                        window.location.reload();
+                    });
                 }
                 if (response['redirect'] != undefined) {
-                    showAlert("Success", response.success, "success");
-                    window.location.href = response['redirect'];
+                    Swal.fire({
+                        title: "Success",
+                        text: response.success,
+                        icon: "success"
+                    }).then(() => {
+                        window.location.href = response['redirect'];
+                    });
                 }
             },
             error: function (xhr, status, error) {
-                // Handle errors
+                var errorMsg = "Something went wrong!";
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMsg = xhr.responseJSON.message;
+                } else if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
+                }
+                Swal.fire({
+                    title: "Error",
+                    text: errorMsg,
+                    icon: "error"
+                });
             }
         });
     }

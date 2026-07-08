@@ -56,9 +56,16 @@ class SubcategoryController extends Controller
 
     public function delete($id)
     {
-
         $company = Subcategory::find($id);
         if ($company) {
+            // Check if any product belongs to this subcategory
+            $hasProducts = \App\Models\Product::where('sub_category_id', $id)->exists();
+            if ($hasProducts) {
+                return response()->json([
+                    'error' => 'product exist in subcatagory'
+                ]);
+            }
+
             $company->delete();
             $msg = [
                 'success' => 'Subcategory Deleted Successfully',

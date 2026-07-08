@@ -48,7 +48,19 @@
                         <td>{{ $customer->customer_name }}</td>
                         <td>{{ $customer->mobile }}</td>
                         <td>{{ $customer->zone }}</td>
-                        <td><span class="text-info"> {{ $customer->debit}} </span><br> <span class="text-center text-danger"> {{$customer->credit }} </span></td>
+                        <td>
+                            @if($customer->ledger)
+                                @if($customer->ledger->closing_balance > 0)
+                                    <span class="text-info">{{ number_format($customer->ledger->closing_balance, 2) }}</span>
+                                @elseif($customer->ledger->closing_balance < 0)
+                                    <span class="text-danger">{{ number_format(abs($customer->ledger->closing_balance), 2) }}</span>
+                                @else
+                                    <span>0.00</span>
+                                @endif
+                            @else
+                                <span>0.00</span>
+                            @endif
+                        </td>
                         <td>{{ $customer->filer_type }}</td>
                         <td>{{ $customer->status }}</td>
                         <td>

@@ -14,6 +14,10 @@ protected $fillable = [
     'email_address_2', 'opening_balance', 'address' , 'status','customer_type'
 ];
 
-    
     use HasFactory;
+
+    public function ledger()
+    {
+        return $this->hasOne(CustomerLedger::class, 'customer_id');
+    }
 }

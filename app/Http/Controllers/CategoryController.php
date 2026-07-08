@@ -50,9 +50,24 @@ class CategoryController extends Controller
 
     public function delete($id)
     {
-
         $company = Category::find($id);
         if ($company) {
+            // Check if any product belongs to this category
+            $hasProducts = \App\Models\Product::where('category_id', $id)->exists();
+            if ($hasProducts) {
+                return response()->json([
+                    'error' => 'product exist in catagory'
+                ]);
+            }
+
+            // Check if any subcategory belongs to this category
+            $hasSubcategories = \App\Models\Subcategory::where('category_id', $id)->exists();
+            if ($hasSubcategories) {
+                return response()->json([
+                    'error' => 'subcategory exist in catagory'
+                ]);
+            }
+
             $company->delete();
             $msg = [
                 'success' => 'Category Deleted Successfully',

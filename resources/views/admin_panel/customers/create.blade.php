@@ -105,7 +105,7 @@
                     <div class="row mb-4">
                         <div class="col-md-6">
                             <label>opening balance (Dr):</label>
-                            <input type="number" class="form-control" name="opening_balance"
+                            <input type="number" step="any" class="form-control" name="opening_balance"
                                 value="{{ old('opening_balance') }}">
                         </div>
                         {{--  <div class="col-md-6">

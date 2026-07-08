@@ -231,11 +231,23 @@
         .page-break {
             page-break-after: always;
         }
+
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 
 <body>
 
+    <!-- ===== PRINT BUTTON ACTION BAR ===== -->
+    <div class="no-print" style="text-align: center; padding: 15px; background: #fdfdfd; border-bottom: 1px dashed #ccc; margin-bottom: 15px;">
+        <button onclick="window.print()" style="padding: 8px 16px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;">Print Receipt</button>
+        <a href="{{ route('sale.add') }}" style="padding: 8px 16px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: bold; margin-left: 10px;">Back to Sale</a>
+    </div>
+
     <div class="receipt-container">
         <div class="receipt-container">
             <div class="ribbon-wrap">
@@ -414,194 +426,16 @@
 
     </div>
 
-    <div class="page-break"></div>
 
-    <div class="receipt-container">
-        <div class="receipt-container">
-            <div class="ribbon-wrap">
-                <div class="ribbon">BOOKED</div>
-            </div>
-            <!-- ===== HEADER ===== -->
-            <div class="center">
-                <h2 class="title">Al-Owais Petroleum Service</h2>
-                <p class="subtitle">Al-Owais Petroleum Service</p>
-                <p style="margin:0">Tower Market Near Ptcl office Hyderabad</p>
-                <p style="margin:0">Phone: 0333-3544684 | 0345-6333940</p>
-            </div>
-
-            <div class="line"></div>
-            <div class="center bold" style="font-size:13px">BOOKING RECEIPT</div>
-            <div class="line"></div>
-
-            <!-- ===== DETAILS ===== -->
-            <table>
-                <tr>
-                    <th>Customer</th>
-                    <td>{{ $booking->customer_relation->customer_name ?? 'N/A' }}</td>
-                </tr>
-                <tr>
-                    <th>Reference</th>
-                    <td>{{ $booking->reference ?? 'N/A' }}</td>
-                </tr>
-                <tr>
-                    <th>Print Time</th>
-                    <td>{{ \Carbon\Carbon::now()->format('d-m-Y H:i:s') }}</td>
-                </tr>
-            </table>
-
-            <div class="line"></div>
-
-            <!-- ===== ITEMS ===== -->
-            <table class="items">
-                <colgroup>
-                    <col style="width:38%">
-                    <col style="width:10%">
-                    <col style="width:12%"> <!-- UOM -->
-                    <col style="width:20%">
-                    <col style="width:20%">
-                </colgroup>
-                <thead>
-                    <tr>
-                        <th class="col-item">Item</th>
-                        <th class="col-qty">Qty</th>
-                        <th class="col-unit">UOM</th>
-                        <th class="col-price">Price</th>
-                        <th class="col-amount">Total</th>
-                    </tr>
-                </thead>
-
-
-                <tbody>
-                    @php
-                        $products = explode(',', $booking->product);
-                        $qtys = explode(',', $booking->qty);
-                        $prices = explode(',', $booking->per_price);
-                        $totals = explode(',', $booking->per_total);
-                    @endphp
-
-                    @foreach($products as $i => $pid)
-                        @php $prod = \App\Models\Product::find($pid); @endphp
-                        <tr>
-                            <td class="col-item">{{ $prod->item_name ?? 'N/A' }}</td>
-
-                            <td class="col-qty">
-                                {{ $qtys[$i] ?? 1 }}
-                            </td>
-
-                            <!-- ✅ UOM with SAFE CONDITION -->
-                            <td class="col-unit">
-                                @php
-                                    // ✅ booking table se unit lo
-                                    $unitRaw = $booking->unit ?? '';
-
-                                    // safety
-                                    if (is_array($unitRaw)) {
-                                        $unitRaw = $unitRaw[0] ?? '';
-                                    }
-
-                                    $unit = strtolower(trim($unitRaw));
-
-                                    if (in_array($unit, ['meter', 'metre', 'mtr'])) {
-                                        $unitShort = 'mtr';
-                                    } elseif (in_array($unit, ['piece', 'pieces', 'pisces', 'pcs'])) {
-                                        $unitShort = 'pcs';
-                                    } elseif (in_array($unit, ['yard', 'yards', 'yd'])) {
-                                        $unitShort = 'yd';
-                                    } else {
-                                        $unitShort = $unitRaw ?: '-';
-                                    }
-                                @endphp
-
-                                {{ $unitShort }}
-
-                            </td>
-
-                            <td class="col-price">
-                                {{ number_format($prices[$i] ?? 0, 0) }}
-                            </td>
-
-                            <td class="bold col-amount">
-                                {{ number_format($totals[$i] ?? 0, 0) }}
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-
-            <div class="line"></div>
-
-            <!-- ===== TOTALS ===== -->
-            <table>
-                @php
-                    $units = [
-                        'Pc' => $booking->total_pieces,
-                        'Mtr' => $booking->total_meter,
-                        'Yd' => $booking->total_yard,
-                    ];
-                @endphp
-                @foreach($units as $label => $value)
-                    @if(!empty($value) && $value > 0)
-                        <tr class="total-units-row total-items-row">
-                            <th>{{ $label }}</th>
-                            <td>{{ $value }}</td>
-                        </tr>
-                    @endif
-                @endforeach
-
-                <tr>
-                    <th>Sale Type</th>
-                    <td>{{ strtoupper($booking->sale_type ?? 'BOOKING') }}</td>
-                </tr>
-                <tr>
-                    <th>Total Amount</th>
-                    <td class="bold">{{ number_format($booking->total_net, 0) }}</td>
-                </tr>
-
-                <tr>
-                    <th>Advance Paid</th>
-                    <td class="bold">
-                        {{ number_format($booking->advance_payment ?? 0, 0) }}
-                    </td>
-                </tr>
-
-                @php
-                    $remaining = max(
-                        ($booking->total_net ?? 0) - ($booking->advance_payment ?? 0),
-                        0
-                    );
-                @endphp
-
-                <tr>
-                    <th>Remaining Amount</th>
-                    <td class="bold">{{ number_format($remaining, 0) }}</td>
-                </tr>
-            </table>
-
-            <div class="line"></div>
-
-            <p class="bold" style="margin:0 0 4px">Amount In Words:</p>
-            <p id="amountInWords" style="margin:0">Loading...</p>
-
-            <!-- ===== FOOTER ===== -->
-            <div class="footer">
-
-                <p>No Warranty of FANCY Suits</p>
-                <p>Developed By: ProWave Technologies</p>
-                <p>+92 317 3836 223 | +92 317 3859 647</p>
-                <p>*** Thank you for the visit ***</p>
-            </div>
-
-        </div>
-
-    </div>
 
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
 
             // ===== CONFIG =====
-            const returnTo = "{{ route('sale.add') }}"; // 👈 jahan back jana hai
-            const autoPrint = true; // print open hote hi
+            const urlParams = new URLSearchParams(window.location.search);
+            const returnTo = urlParams.get('return_to') || "{{ route('sale.add') }}"; // 👈 jahan back jana hai
+            const autoPrint = urlParams.get('autoprint') === '1' || urlParams.get('autoprint') === 'true'; // print open hote hi
 
             // ===== AMOUNT IN WORDS =====
             function numberToWords(num) {
