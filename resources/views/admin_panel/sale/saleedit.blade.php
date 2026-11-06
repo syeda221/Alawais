@@ -569,7 +569,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Booking - Advance Payment</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-2">
@@ -582,7 +582,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-dismiss="modal">Close</button>
                     <button type="button" id="confirmBookingBtn" class="btn btn-warning">Confirm Booking</button>
                 </div>
             </div>
@@ -595,7 +595,7 @@
             <div class="modal-content">
                 <div class="modal-header" style="background: linear-gradient(135deg,#1a1a2e,#16213e); color:#fff;">
                     <h5 class="modal-title">📒 Customer Ledger</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-0">
                     <div id="ledgerModalContent" class="p-3 text-center text-muted">Select a customer to view ledger.</div>
@@ -1077,8 +1077,26 @@
                 const net = bill - extra + labour;
                 $('#modalNetAmount').val(net.toFixed(2));
                 $('#modalAdvance').val($('#advance_payment').val());
-                var bookingModal = new bootstrap.Modal(document.getElementById('bookingModal'));
-                bookingModal.show();
+                if (typeof $.fn.modal === 'function') {
+                    $('#bookingModal').modal('show');
+                } else if (window.bootstrap && bootstrap.Modal) {
+                    var bookingModal = bootstrap.Modal.getOrCreateInstance ? 
+                        bootstrap.Modal.getOrCreateInstance(document.getElementById('bookingModal')) : 
+                        new bootstrap.Modal(document.getElementById('bookingModal'));
+                    bookingModal.show();
+                }
+            });
+
+            // Explicit close handler for Booking Modal
+            $(document).on('click', '#bookingModal [data-dismiss="modal"], #bookingModal [data-bs-dismiss="modal"], #bookingModal .btn-close', function () {
+                $('#bookingModal').modal('hide');
+                try {
+                    if (window.bootstrap && bootstrap.Modal) {
+                        var inst = bootstrap.Modal.getInstance ? bootstrap.Modal.getInstance(document.getElementById('bookingModal')) : null;
+                        if (inst && inst.hide) inst.hide();
+                    }
+                } catch (err) {}
+            
             });
 
             $('#confirmBookingBtn').on('click', function () {
@@ -1101,10 +1119,49 @@
 
             // ===== FORM SUBMISSION VALIDATION =====
             $('#salesForm').on('submit', function (e) {
+                // Auto-heal empty numbers so they never fail database null constraints
+                if ($('#extraDiscount').val().trim() === '') $('#extraDiscount').val(0);
+                if ($('#labourCharges').val().trim() === '') $('#labourCharges').val(0);
+                if ($('#cash').val().trim() === '') $('#cash').val(0);
+                if ($('#card').val().trim() === '') $('#card').val(0);
+                $('#purchaseItems tr').each(function () {
+                    const $disc = $(this).find('input[name="item_disc[]"]');
+                    if ($disc.length && $disc.val().trim() === '') $disc.val(0);
+                });
+                recalcSummary();
+
                 let action = $(document.activeElement).val();
                 if (!action) action = $('input[name="action"]').val();
 
                 const customer = $('#customerSelect').val();
+
+                // Validate at least one valid product row
+                let validRows = 0;
+                let rowError = '';
+                $('#purchaseItems tr').each(function (idx) {
+                    const pid = $(this).find('input[name="product_id[]"]').val();
+                    const qty = parseFloat($(this).find('input[name="qty[]"]').val()) || 0;
+                    const price = parseFloat($(this).find('input[name="price[]"]').val()) || 0;
+                    if (pid) {
+                        if (qty <= 0) { rowError = 'Row #' + (idx + 1) + ' quantity must be greater than 0.'; return false; }
+                        if (price <= 0) { rowError = 'Row #' + (idx + 1) + ' price must be greater than 0.'; return false; }
+                        validRows++;
+                    }
+                });
+
+                if (rowError) {
+                    e.preventDefault();
+                    if (typeof showAlert === 'function') { showAlert('Validation Error', rowError, 'warning'); }
+                    else { alert(rowError); }
+                    return false;
+                }
+
+                if (validRows === 0) {
+                    e.preventDefault();
+                    if (typeof showAlert === 'function') { showAlert('Validation Error', 'Please add at least one product with quantity and price.', 'warning'); }
+                    else { alert('Please add at least one product with quantity and price.'); }
+                    return false;
+                }
 
                 if (action === 'sale' && customer === 'Walk-in Customer') {
                     const net = parseFloat($('#netAmount').val()) || 0;
@@ -1113,7 +1170,11 @@
 
                     if (paid < net - 0.01) {
                         e.preventDefault();
-                        alert('For Walk-in Customer, full payment is required!\nNet Amount: Rs ' + net.toFixed(2) + '\nPaid Amount: Rs ' + paid.toFixed(2));
+                        if (typeof showAlert === 'function') {
+                            showAlert('Full Payment Required', 'For Walk-in Customer, full payment is required!\nNet Amount: Rs ' + net.toFixed(2) + '\nPaid Amount: Rs ' + paid.toFixed(2), 'warning');
+                        } else {
+                            alert('For Walk-in Customer, full payment is required!\nNet Amount: Rs ' + net.toFixed(2) + '\nPaid Amount: Rs ' + paid.toFixed(2));
+                        }
                         $('.pay-amount-input:first').focus().select();
                         return false;
                     }

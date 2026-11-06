@@ -285,11 +285,20 @@ class SaleController extends Controller
                 }
             }
 
+            $payAccountIds = $request->input('pay_account_id', []);
+            $primaryAccountId = $request->account_id;
+            if (!$primaryAccountId && !empty($payAccountIds) && !empty($payAccountIds[0])) {
+                $primaryAccountId = $payAccountIds[0];
+            }
+            if (!$primaryAccountId && floatval($request->cash ?? 0) > 0) {
+                $primaryAccountId = \App\Models\Account::where('title', 'Cash')->orWhere('title', 'like', '%cash%')->value('id') ?? 1;
+            }
+
             // --- Fill common fields ---
             $model->customer             = $request->customer;
             $model->reference            = $request->reference;
             $model->remarks              = $request->remarks;
-            $model->account_id           = $request->account_id;
+            $model->account_id           = $primaryAccountId;
             $model->product              = implode(',', $combined_product_ids);
             $model->product_code         = implode(',', $combined_codes);
             $model->brand                = implode(',', $combined_brands);
@@ -299,18 +308,18 @@ class SaleController extends Controller
             $model->qty                  = implode(',', $combined_qtys);
             $model->per_total            = implode(',', $combined_totals);
             $model->color                = json_encode($combined_colors);
-            $model->total_amount_Words   = $request->total_amount_Words;
-            $model->total_bill_amount    = $request->total_subtotal;
-            $model->total_extradiscount  = $request->total_extra_cost;
+            $model->total_amount_Words   = $request->total_amount_Words ?? '';
+            $model->total_bill_amount    = floatval($request->total_subtotal ?? 0);
+            $model->total_extradiscount  = floatval($request->total_extra_cost ?? 0);
             $model->labour_charges       = floatval($request->labour_charges ?? 0);
-            $model->total_net            = $request->total_net;
-            $model->cash                 = $request->cash;
-            $model->card                 = $request->card;
-            $model->change               = $request->change;
+            $model->total_net            = floatval($request->total_net ?? 0);
+            $model->cash                 = floatval($request->cash ?? 0);
+            $model->card                 = floatval($request->card ?? 0);
+            $model->change               = floatval($request->change ?? 0);
             $model->total_items          = $total_items;
-            $model->total_pieces          = $request->total_pieces;
-            $model->total_yard          = $request->total_yard;
-            $model->total_meter          = $request->total_meter;
+            $model->total_pieces         = floatval($request->total_pieces ?? 0);
+            $model->total_yard           = floatval($request->total_yard ?? 0);
+            $model->total_meter          = floatval($request->total_meter ?? 0);
 
             // Booking-specific field
             if ($action === 'booking') {
@@ -952,12 +961,12 @@ class SaleController extends Controller
             // colors as JSON array of json-encoded color-arrays (to keep compatible with your existing format)
             $saleReturn->color = json_encode($combined_colors);
             $saleReturn->total_amount_Words = $request->total_amount_Words ?? '';
-            $saleReturn->total_bill_amount = $request->total_subtotal ?? array_sum($combined_totals);
-            $saleReturn->total_extradiscount = $request->total_extra_cost ?? 0;
-            $saleReturn->total_net = $request->total_net ?? array_sum($combined_totals);
-            $saleReturn->cash = $request->cash ?? 0;
-            $saleReturn->card = $request->card ?? 0;
-            $saleReturn->change = $request->change ?? 0;
+            $saleReturn->total_bill_amount = floatval($request->total_subtotal ?? array_sum($combined_totals));
+            $saleReturn->total_extradiscount = floatval($request->total_extra_cost ?? 0);
+            $saleReturn->total_net = floatval($request->total_net ?? array_sum($combined_totals));
+            $saleReturn->cash = floatval($request->cash ?? 0);
+            $saleReturn->card = floatval($request->card ?? 0);
+            $saleReturn->change = floatval($request->change ?? 0);
             $saleReturn->total_items = $total_items;
             $saleReturn->return_note = $request->return_note ?? null;
             $saleReturn->save();
@@ -1383,11 +1392,11 @@ class SaleController extends Controller
             $sale->qty                 = implode(',', $combined_qtys);
             $sale->per_total           = implode(',', $combined_totals);
             $sale->color               = json_encode($combined_notes);
-            $sale->total_amount_Words  = $request->total_amount_Words;
-            $sale->total_bill_amount   = $request->total_subtotal;
-            $sale->total_extradiscount = $request->total_extra_cost;
-            $sale->labour_charges       = floatval($request->labour_charges ?? 0);
-            $sale->total_net           = $request->total_net;
+            $sale->total_amount_Words  = $request->total_amount_Words ?? '';
+            $sale->total_bill_amount   = floatval($request->total_subtotal ?? 0);
+            $sale->total_extradiscount = floatval($request->total_extra_cost ?? 0);
+            $sale->labour_charges      = floatval($request->labour_charges ?? 0);
+            $sale->total_net           = floatval($request->total_net ?? 0);
             
             // Handle Payments (multi-account)
             $payAccountIds = $request->input('pay_account_id', []);
@@ -1412,7 +1421,7 @@ class SaleController extends Controller
 
             $sale->cash                = $total_paid; // Store total paid in cash field for simplicity
             $sale->card                = 0;
-            $sale->change              = $request->change;
+            $sale->change              = floatval($request->change ?? 0);
             $sale->total_items         = $total_items;
             $sale->save();
 

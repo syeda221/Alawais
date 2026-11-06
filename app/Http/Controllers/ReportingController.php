@@ -255,7 +255,7 @@ class ReportingController extends Controller
             $rows[] = [
                 'id' => $product->id,
                 'date' => date('Y-m-d', strtotime($product->created_at)),
-                'item_code' => $product->item_code,
+                'item_code' => $product->item_code ?: ('ITEM-' . str_pad($product->id, 4, '0', STR_PAD_LEFT)),
                 'item_name' => $product->item_name,
                 'is_group_product' => $isGroupProduct,
                 'initial_stock' => (float) ($product->initial_stock ?? 0),

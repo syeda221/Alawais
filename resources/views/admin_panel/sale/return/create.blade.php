@@ -405,7 +405,7 @@ try {
             $('#totalPaidLabel strong').text('Rs ' + payAmt.toLocaleString('en-PK', {minimumFractionDigits: 0, maximumFractionDigits: 2}));
 
             const extraDiscount = num($('#extraDiscount').val());
-            const net = Math.max(0, billAmount - itemDiscount - extraDiscount);
+            const net = Math.max(0, billAmount - extraDiscount);
             const change = payAmt - net;
 
             $('#billAmount').val(billAmount.toFixed(2));
@@ -457,6 +457,25 @@ try {
             if ($('.payment-row').length > 1) {
                 $(this).closest('.payment-row').remove();
                 recalcAll();
+            }
+        });
+
+        // Form submission auto-heal & validation (keeps data intact on warning)
+        $('form').on('submit', function (e) {
+            if ($('#extraDiscount').val().trim() === '') $('#extraDiscount').val(0);
+            $('.pay-amount-input').each(function () {
+                if ($(this).val().trim() === '') $(this).val(0);
+            });
+            recalcAll();
+
+            if ($('#returnItemsTable tbody tr').length === 0) {
+                e.preventDefault();
+                if (typeof showAlert === 'function') {
+                    showAlert('Validation Error', 'Please select at least one item to return.', 'warning');
+                } else {
+                    alert('Please select at least one item to return.');
+                }
+                return false;
             }
         });
 

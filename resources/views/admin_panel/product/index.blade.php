@@ -83,7 +83,11 @@
                                     <i class="fas fa-exclamation-triangle"></i>
                                 </span>
                             @endif
-                            {{ $product->item_name }}</td>
+                            {{ $product->item_name }}
+                            @if($product->item_code)
+                                <br><span class="badge bg-light text-secondary border font-monospace">{{ $product->item_code }}</span>
+                            @endif
+                        </td>
                         <td>
                             <strong>{{ $product->category_relation->name ?? '-' }}</strong><br>
                             <small class="text-muted">{{ $product->sub_category_relation->name ?? '-' }}</small>

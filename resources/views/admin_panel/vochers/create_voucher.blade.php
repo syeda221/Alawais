@@ -1033,6 +1033,16 @@ $(document).ready(function() {
         initSelect2();
     });
 
+    // Auto-switch voucher type from URL param ?type=payment_in or hash
+    var urlParams = new URLSearchParams(window.location.search);
+    var targetType = urlParams.get('type') || window.location.hash.replace('#', '');
+    if (targetType) {
+        var $btn = $('#voucherTypeSelector .voucher-type-btn[data-type="' + targetType + '"]');
+        if ($btn.length) {
+            $btn.trigger('click');
+        }
+    }
+
     // ============== SELECT2 INIT ==============
     function initSelect2() {
         var $active = $('.voucher-form-section.active');

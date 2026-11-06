@@ -25,7 +25,7 @@
                         <div class="col-md-8 text-end">
                              <div class="d-inline-block p-3 border rounded bg-success text-white">
                                 <h5 class="mb-0">Current Balance</h5>
-                                <h3 class="mb-0">{{ number_format($account->opening_balance, 2) }}</h3>
+                                <h3 class="mb-0">{{ number_format($ledgerClosingBalance ?? $account->opening_balance, 2) }}</h3>
                              </div>
                         </div>
                     </div>

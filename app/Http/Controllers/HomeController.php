@@ -23,7 +23,98 @@ class HomeController extends Controller
             return view('user_panel.dashboard', compact('userId'));
         } elseif ($usertype == 'admin') {
 
-            return view('admin_panel.dashboard');
+            // Dynamic ERP metrics for Petrol Station
+            $totalSales = DB::table('sales')->sum('total_net') ?? 0;
+            $salesCount = DB::table('sales')->count();
+
+            $totalCustomerRecovery = DB::table('customer_payments')->sum('amount') ?? 0;
+            $customerPaymentsCount = DB::table('customer_payments')->count();
+
+            $totalExpenses = DB::table('expense_vouchers')->sum('total_amount') ?? 0;
+            $expenseCount = DB::table('expense_vouchers')->count();
+            $pumpLossExpenses = DB::table('expense_vouchers')->where('remarks', 'like', '%loss%')->sum('total_amount') ?? 0;
+
+            $netOperatingPosition = ($totalSales + $totalCustomerRecovery) - $totalExpenses;
+
+            $totalPurchases = DB::table('purchases')->sum('net_amount') ?? 0;
+            $purchasesCount = DB::table('purchases')->count();
+
+            $totalCustomers = DB::table('customers')->count();
+            $totalCustomerDues = DB::table('customers')->sum('opening_balance') ?? 0;
+
+            $totalVendors = DB::table('vendors')->count();
+            $totalVendorDues = DB::table('vendors')->sum('opening_balance') ?? 0;
+
+            $accounts = DB::table('accounts')->get();
+            $cashAccount = $accounts->where('title', 'Cash')->first();
+            $cashBalance = $cashAccount ? $cashAccount->opening_balance : 0;
+            $bankAccounts = $accounts->where('title', '!=', 'Cash');
+            $bankBalance = $bankAccounts->sum('opening_balance') ?? 0;
+            $totalLiquidAssets = $cashBalance + $bankBalance;
+
+            $products = DB::table('products')
+                ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
+                ->select('products.*', 'categories.name as category_name')
+                ->get();
+            $productNamesList = $products->take(4)->pluck('item_name')->implode(', ');
+
+            $topCustomers = DB::table('customers')
+                ->orderByDesc('opening_balance')
+                ->take(6)
+                ->get();
+
+            $vendors = DB::table('vendors')
+                ->orderByDesc('opening_balance')
+                ->take(6)
+                ->get();
+            $vendorNamesList = $vendors->take(3)->pluck('name')->implode(', ');
+
+            $recentPayments = DB::table('customer_payments')
+                ->leftJoin('customers', 'customer_payments.customer_id', '=', 'customers.id')
+                ->select('customer_payments.*', 'customers.customer_name', 'customers.customer_id as cust_code')
+                ->orderByDesc('customer_payments.id')
+                ->take(6)
+                ->get();
+
+            $expenseCategories = DB::table('expense_categories')
+                ->select('title', DB::raw('SUM(total_amount) as total_amount'))
+                ->where('total_amount', '>', 0)
+                ->groupBy('title')
+                ->orderByDesc('total_amount')
+                ->get();
+
+            $recentPurchases = DB::table('purchases')
+                ->leftJoin('vendors', 'purchases.vendor_id', '=', 'vendors.id')
+                ->select('purchases.*', 'vendors.name as vendor_name')
+                ->orderByDesc('purchases.id')
+                ->take(5)
+                ->get();
+
+            // Dynamic 6-month Velocity data for Charts
+            $months = collect(range(5, 0))->map(fn($i) => Carbon::now()->subMonths($i));
+            $velocityLabels = $months->map(fn($m) => $m->format('M Y'))->toArray();
+            $monthlyPurchases = $months->map(function($m) {
+                return (float) DB::table('purchases')
+                    ->whereYear('created_at', $m->year)
+                    ->whereMonth('created_at', $m->month)
+                    ->sum('net_amount');
+            })->toArray();
+            $monthlySales = $months->map(function($m) {
+                return (float) DB::table('sales')
+                    ->whereYear('created_at', $m->year)
+                    ->whereMonth('created_at', $m->month)
+                    ->sum('total_net');
+            })->toArray();
+
+            return view('admin_panel.dashboard', compact(
+                'totalSales', 'salesCount', 'totalCustomerRecovery', 'customerPaymentsCount',
+                'totalExpenses', 'expenseCount', 'pumpLossExpenses', 'netOperatingPosition',
+                'totalPurchases', 'purchasesCount', 'totalCustomers', 'totalCustomerDues',
+                'totalVendors', 'totalVendorDues', 'accounts', 'cashBalance', 'bankBalance',
+                'totalLiquidAssets', 'products', 'productNamesList', 'topCustomers', 'vendors',
+                'vendorNamesList', 'recentPayments', 'expenseCategories', 'recentPurchases',
+                'velocityLabels', 'monthlyPurchases', 'monthlySales'
+            ));
         } else {
             return redirect()->back()->with('error', 'Unauthorized access');
         }

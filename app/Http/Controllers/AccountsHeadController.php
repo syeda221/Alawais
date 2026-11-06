@@ -170,8 +170,21 @@ class AccountsHeadController extends Controller
             });
 
         // 5. Sales (Cash Receipts)
+        $isCash = \App\Models\Account::where('id', $id)
+            ->where(function($q) {
+                $q->where('id', 1)->orWhere('title', 'like', '%cash%');
+            })->exists();
+
         $sales = \Illuminate\Support\Facades\DB::table('sales')
-            ->where('account_id', $id)
+            ->where(function ($q) use ($id, $isCash) {
+                $q->where('account_id', $id);
+                if ($isCash) {
+                    $q->orWhere(function ($sq) {
+                        $sq->whereNull('account_id')->orWhere('account_id', 0)->orWhere('account_id', '');
+                    })->where('cash', '>', 0);
+                }
+            })
+            ->where('cash', '>', 0)
             ->get()
             ->map(function ($t) {
                 return [
@@ -216,20 +229,17 @@ class AccountsHeadController extends Controller
             ->values()
             ->all();
 
-        // Calculate Balance
-        $balance = 0; // We'll start from 0 and assume opening balance is the first transaction or we can add it
+        // Calculate dynamic ledger balance
+        $totalIn = collect($transactions)->sum('in');
+        $totalOut = collect($transactions)->sum('out');
+        $ledgerClosingBalance = $totalIn - $totalOut;
+
+        // Keep account balance synced with actual ledger total
+        if ((float) $account->opening_balance !== (float) $ledgerClosingBalance) {
+            $account->opening_balance = $ledgerClosingBalance;
+            $account->save();
+        }
         
-        // Actually, opening balance should be included
-        $opening = [
-            'date' => $account->created_at ?? '2000-01-01',
-            'description' => 'Initial Opening Balance',
-            'in' => $account->opening_balance > 0 ? $account->opening_balance : 0,
-            'out' => $account->opening_balance < 0 ? abs($account->opening_balance) : 0,
-        ];
-        // Wait, the project treats opening_balance as CURRENT balance in some places.
-        // But for a ledger, we want the INITIAL opening balance.
-        // Given the way the system works, I'll just show the transactions and let the user see the flow.
-        
-        return view('admin_panel.reporting.account_ledger', compact('account', 'transactions'));
+        return view('admin_panel.reporting.account_ledger', compact('account', 'transactions', 'ledgerClosingBalance'));
     }
 }

@@ -50,6 +50,12 @@
 
                                 <div class="row g-3">
                                     
+                                    <!-- Item Code -->
+                                    <div class="col-sm-4">
+                                        <label class="form-label fw-bold">Item Code</label>
+                                        <input type="text" name="item_code" class="form-control bg-light" value="{{ $product->item_code ?? ('ITEM-' . str_pad($product->id, 4, '0', STR_PAD_LEFT)) }}" readonly>
+                                    </div>
+
                                     <!-- Product Name -->
                                     <div class="col-sm-4">
                                         <label class="form-label fw-bold">Product Name <span class="text-danger">*</span></label>
@@ -87,7 +93,7 @@
                                         <label class="form-label fw-bold">Unit (UOM) <span class="text-danger">*</span></label>
                                         <select name="unit" class="form-select" required>
                                             <option value="" disabled>Select One</option>
-                                            <option value="LITTER Ltr" {{ $product->unit_id == 'Ltr' ? 'selected' : '' }}>LITTER (Ltr)</option>
+                                            <option value="LTR" {{ in_array($product->unit_id, ['LTR', 'Ltr', 'LITTER Ltr']) ? 'selected' : '' }}>LITTER (LTR)</option>
                                             <option value="ML" {{ $product->unit_id == 'ML' ? 'selected' : '' }}>ML</option>
                                         </select>
                                     </div>
@@ -95,7 +101,7 @@
                                     <!-- Stock -->
                                     <div class="col-sm-4">
                                         <label class="form-label fw-bold">Stock</label>
-                                        <input type="number" name="Stock" class="form-control" value="{{ $product->initial_stock }}" step="0.01" min="0">
+                                        <input type="number" name="Stock" class="form-control" value="{{ $product->initial_stock ?? 0 }}" step="0.01" min="0">
                                     </div>
 
                                     <!-- Alert Quantity -->

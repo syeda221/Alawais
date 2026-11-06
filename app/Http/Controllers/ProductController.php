@@ -187,12 +187,8 @@ class ProductController extends Controller
         ]);
 
         // Generate next item code
-        $lastProduct = Product::orderBy('id', 'desc')->first();
-        $nextCode = 'ITEM-0001';
-        if ($lastProduct) {
-            $lastId = $lastProduct->id + 1;
-            $nextCode = 'ITEM-' . str_pad($lastId, 4, '0', STR_PAD_LEFT);
-        }
+        $maxId = (int) Product::max('id');
+        $nextCode = 'ITEM-' . str_pad($maxId + 1, 4, '0', STR_PAD_LEFT);
 
         // Image upload
         $imagePath = null;
@@ -236,7 +232,7 @@ class ProductController extends Controller
                 'creater_id'      => $userId,
                 'category_id'     => $categoryId,
                 'sub_category_id' => $subCategoryId,
-                'item_code'       => $nextCode,
+                'item_code'       => $request->filled('item_code') ? $request->input('item_code') : $nextCode,
                 'item_name'       => $request->input('product_name'),
                 'barcode_path'    => $request->input('barcode_path') ?? rand(100000000000, 999999999999),
                 'unit_id'         => $unit,
@@ -290,51 +286,59 @@ class ProductController extends Controller
             $imageFilename = Product::where('id', $product_id)->value('image');
         }
 
+        $existingProduct = Product::where('id', $product_id)->first();
+        $itemCode = $request->filled('item_code')
+            ? $request->item_code
+            : (($existingProduct && !empty($existingProduct->item_code)) ? $existingProduct->item_code : 'ITEM-' . str_pad($product_id, 4, '0', STR_PAD_LEFT));
+
+        $initialStock = $request->filled('Stock')
+            ? (float) $request->Stock
+            : (($existingProduct && $existingProduct->initial_stock !== null) ? (float) $existingProduct->initial_stock : 0);
+
         // Update product table
         Product::where('id', $product_id)->update([
             'creater_id'      => $userId,
             'category_id'     => $request->category_id,
             'sub_category_id' => $request->sub_category_id,
-            'item_code'       => $request->item_code,
+            'item_code'       => $itemCode,
             'item_name'       => $request->product_name,
             'barcode_path'    => $request->barcode_path ?? rand(100000000000, 999999999999),
             'unit_id'         => $request->unit,
-            'initial_stock'   => $request->Stock,
-            'brand_id'        => $request->brand_id,
-            'wholesale_price' => $request->wholesale_price,
-            'price'           => $request->retail_price,
-            'note'            => $request->note,
-            'alert_quantity'  => $request->alert_quantity,
+            'initial_stock'   => $initialStock,
+            'brand_id'        => $request->filled('brand_id') ? $request->brand_id : ($existingProduct->brand_id ?? null),
+            'wholesale_price' => $request->filled('wholesale_price') ? (float) $request->wholesale_price : ($existingProduct->wholesale_price ?? 0),
+            'price'           => $request->filled('retail_price') ? (float) $request->retail_price : ($existingProduct->price ?? 0),
+            'note'            => $request->filled('note') ? $request->note : ($existingProduct->note ?? null),
+            'alert_quantity'  => $request->filled('alert_quantity') ? (int) $request->alert_quantity : ($existingProduct->alert_quantity ?? 0),
             'image'           => $imageFilename,
             'updated_at'      => now(),
         ]);
 
-        // ===== Update or Insert to stocks table =====
-        // Determine branch & warehouse (use request or defaults)
-        $branchId = $request->branch_id ?? 1;
-        $warehouseId = $request->warehouse_id ?? 1;
-        $newQty = (int) $request->Stock; // sanitize
+        // ===== Update or Insert to stocks table (only if Stock field provided) =====
+        if ($request->filled('Stock')) {
+            $branchId = $request->branch_id ?? 1;
+            $warehouseId = $request->warehouse_id ?? 1;
+            $newQty = (float) $request->Stock;
 
-        // Try to update existing stock row for this product + branch + warehouse
-        $updated = DB::table('stocks')
-            ->where('product_id', $product_id)
-            ->where('branch_id', $branchId)
-            ->where('warehouse_id', $warehouseId)
-            ->update([
-                'qty' => $newQty,
-                'updated_at' => now(),
-            ]);
+            $updated = DB::table('stocks')
+                ->where('product_id', $product_id)
+                ->where('branch_id', $branchId)
+                ->where('warehouse_id', $warehouseId)
+                ->update([
+                    'qty' => $newQty,
+                    'updated_at' => now(),
+                ]);
 
-        // If update affected 0 rows, insert a new stock row (only if qty > 0 or if you want to keep zeros too)
-        if (!$updated) {
-            DB::table('stocks')->insert([
-                'branch_id'    => $branchId,
-                'warehouse_id' => $warehouseId,
-                'product_id'   => $product_id,
-                'qty'          => $newQty,
-                'created_at'   => now(),
-                'updated_at'   => now(),
-            ]);
+            if (!$updated) {
+                DB::table('stocks')->insert([
+                    'branch_id'    => $branchId,
+                    'warehouse_id' => $warehouseId,
+                    'product_id'   => $product_id,
+                    'qty'          => $newQty,
+                    'created_at'   => now(),
+                    'updated_at'   => now(),
+                ]);
+            }
         }
 
         return redirect()->route('product')->with('success', 'Product updated successfully');

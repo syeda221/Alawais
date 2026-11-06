@@ -123,7 +123,7 @@
                             <select name="product_id" id="product_id" class="form-select select2">
                                 <option value="all">-- All Products --</option>
                                 @foreach ($allProducts as $prod)
-                                <option value="{{ $prod->id }}">{{ $prod->item_code }} - {{ $prod->item_name }}</option>
+                                <option value="{{ $prod->id }}">{{ $prod->item_code ?: ('ITEM-' . str_pad($prod->id, 4, '0', STR_PAD_LEFT)) }} - {{ $prod->item_name }}</option>
                                 @endforeach
                             </select>
                         </div>
