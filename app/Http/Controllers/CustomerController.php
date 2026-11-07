@@ -461,4 +461,44 @@ class CustomerController extends Controller
 
         return response()->json(['customers' => $customers]);
     }
+
+    public function searchCustomers(Request $request)
+    {
+        $q = trim((string) $request->input('q', ''));
+        $customers = Customer::query()
+            ->where(function ($query) {
+                $query->where('customer_type', '!=', 'Dual Party')
+                      ->orWhereNull('customer_type');
+            })
+            ->whereNotIn('customer_id', function ($query) {
+                $query->select('customer_id')->from('customers')->where('customer_id', 'LIKE', 'VC-%');
+            })
+            ->when($q, function ($query, $q) {
+                $query->where(function ($sub) use ($q) {
+                    $sub->where('customer_name', 'LIKE', "%{$q}%")
+                        ->orWhere('customer_id', 'LIKE', "%{$q}%")
+                        ->orWhere('mobile', 'LIKE', "%{$q}%");
+                });
+            })
+            ->select('id', 'customer_name', 'customer_id', 'mobile')
+            ->orderBy('customer_name', 'asc')
+            ->limit(50)
+            ->get();
+
+        $results = $customers->map(function ($c) {
+            $text = $c->customer_name;
+            if (!empty($c->customer_id)) {
+                $text .= ' [' . $c->customer_id . ']';
+            }
+            if (!empty($c->mobile)) {
+                $text .= ' - ' . $c->mobile;
+            }
+            return [
+                'id' => $c->id,
+                'text' => $text,
+            ];
+        });
+
+        return response()->json($results);
+    }
 }

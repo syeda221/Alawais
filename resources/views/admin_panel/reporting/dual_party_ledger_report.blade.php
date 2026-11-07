@@ -17,9 +17,11 @@
                         <div class="col-md-3">
                             <label class="form-label">Dual Party</label>
                             <select name="customer_id" id="customer_id" class="form-control" required>
-                                <option value="">Select Dual Party</option>
+                                <option value="">-- Select or Search Dual Party --</option>
                                 @foreach($dualParties as $c)
-                                <option value="{{ $c->id }}">{{ $c->customer_name }}</option>
+                                <option value="{{ $c->id }}">
+                                    {{ $c->customer_name }}{{ !empty($c->customer_id) ? ' [' . $c->customer_id . ']' : '' }}{{ !empty($c->mobile) ? ' - ' . $c->mobile : '' }}
+                                </option>
                                 @endforeach
                             </select>
                         </div>
@@ -238,6 +240,11 @@
 
 <script>
     $(document).ready(function() {
+        $('#customer_id').select2({
+            placeholder: 'Search dual party...',
+            allowClear: true,
+            width: '100%'
+        });
         $(document).on('click', '#btnSearch', function() {
 
             let cid = $("#customer_id").val();

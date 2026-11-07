@@ -21,7 +21,8 @@ class SaleController extends Controller
     public function index()
     {
         $sales = Sale::with(['customer_relation', 'product_relation'])->orderBy('id', 'desc')->get();
-        return view('admin_panel.sale.index', compact('sales'));
+        $customers = Customer::orderBy('customer_name')->get();
+        return view('admin_panel.sale.index', compact('sales', 'customers'));
     }
 
     public function addsale()

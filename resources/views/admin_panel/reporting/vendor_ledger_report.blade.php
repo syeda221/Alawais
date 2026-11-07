@@ -15,11 +15,13 @@
                 <div class="card-body">
                     <form id="ledgerForm" class="row g-2 align-items-end">
                         <div class="col-md-3">
-                            <label class="form-label">Vendor</label>
+                            <label class="form-label fw-bold"><i class="fas fa-truck me-1 text-primary"></i> Vendor</label>
                             <select name="Vendor_id" id="Vendor_id" class="form-control" required>
-                                <option value="">Select Vendor</option>
+                                <option value="">-- Select or Search Vendor --</option>
                                 @foreach($vendors as $v)
-                                <option value="{{ $v->id }}">{{ $v->name }}</option>
+                                <option value="{{ $v->id }}">
+                                    {{ $v->name }}{{ !empty($v->phone) ? ' - ' . $v->phone : '' }}
+                                </option>
                                 @endforeach
                             </select>
                         </div>
@@ -81,6 +83,46 @@
 </div>
 @endsection
 <style>
+    /* Select2 Custom Styling for Vendor Ledger */
+    .select2-container--default .select2-selection--single {
+        height: 38px !important;
+        border: 1.5px solid #ced4da !important;
+        border-radius: 6px !important;
+        padding: 5px 10px !important;
+        background-color: #fff !important;
+        display: flex;
+        align-items: center;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 26px !important;
+        font-size: 13.5px !important;
+        color: #333 !important;
+        padding-left: 0 !important;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+        right: 8px !important;
+    }
+    .select2-dropdown {
+        border: 1.5px solid #2d5f8a !important;
+        border-radius: 8px !important;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12) !important;
+        z-index: 1060 !important;
+    }
+    .select2-search--dropdown .select2-search__field {
+        border-radius: 6px !important;
+        border: 1px solid #ced4da !important;
+        padding: 6px 10px !important;
+        font-size: 13px !important;
+    }
+    .select2-results__option {
+        padding: 7px 12px !important;
+        font-size: 13px !important;
+    }
+    .select2-results__option--highlighted[aria-selected] {
+        background-color: #2d5f8a !important;
+    }
+
     /* Ledger Box */
     .ledger-box {
         border: 3px solid #000;
@@ -223,6 +265,19 @@
 @section('scripts')
 <script>
     $(document).ready(function() {
+        // Initialize Select2 on Vendor with instant search
+        $('#Vendor_id').select2({
+            placeholder: 'Search vendor by name or phone...',
+            allowClear: true,
+            width: '100%'
+        });
+
+        // Close on window scroll so it doesn't float
+        $(window).on('scroll', function() {
+            if ($('#Vendor_id').hasClass('select2-hidden-accessible')) {
+                $('#Vendor_id').select2('close');
+            }
+        });
         $(document).on('click', '#btnSearch', function() {
 
             let cid = $("#Vendor_id").val();

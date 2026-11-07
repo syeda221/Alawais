@@ -506,7 +506,11 @@
             // Buttons
             document.getElementById('btnPrint').addEventListener('click', () => window.print());
             document.getElementById('btnBack').addEventListener('click', () => {
-                if (history.length > 1) history.back(); else window.close();
+                window.close();
+                setTimeout(function() {
+                    if (history.length > 1) history.back();
+                    else window.location.href = "{{ route('sale.index') }}";
+                }, 100);
             });
         });
     </script>

@@ -59,10 +59,25 @@
                                                 </div>
 
                                                 <div class="col-xl-3 col-sm-6 mt-3">
-                                                    <label><i class="bi bi-building text-primary me-1"></i>
-                                                        Warehouse</label>
+                                                    <label class="form-label"><i class="bi bi-geo-alt text-primary me-1"></i> Received In</label>
+                                                    <div class="d-flex align-items-center gap-4 mt-2">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input purchaseType" type="radio" name="purchase_to" value="shop" id="typeShop"
+                                                                {{ ($purchase->purchase_to === 'shop' || empty($purchase->warehouse_id)) ? 'checked' : '' }}>
+                                                            <label class="form-check-label" for="typeShop">Shop</label>
+                                                        </div>
+                                                        <div class="form-check">
+                                                            <input class="form-check-input purchaseType" type="radio" name="purchase_to" value="warehouse" id="typeWH"
+                                                                {{ ($purchase->purchase_to === 'warehouse' && !empty($purchase->warehouse_id)) ? 'checked' : '' }}>
+                                                            <label class="form-check-label" for="typeWH">Warehouse</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-xl-3 col-sm-6 mt-3 {{ ($purchase->purchase_to === 'warehouse' && !empty($purchase->warehouse_id)) ? '' : 'd-none' }}" id="warehouseBox">
+                                                    <label><i class="bi bi-building text-primary me-1"></i> Warehouse</label>
                                                     <select name="warehouse_id" class="form-control">
-                                                        <option disabled>Select One</option>
+                                                        <option value="" disabled {{ empty($purchase->warehouse_id) ? 'selected' : '' }}>Select Warehouse</option>
                                                         @foreach ($Warehouse as $item)
                                                         <option value="{{ $item->id }}"
                                                             {{ $item->id == $purchase->warehouse_id ? 'selected' : '' }}>
@@ -87,8 +102,14 @@
                                             </div>
 
                                             <!-- Items Table -->
+                                            <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
+                                                <h5 class="m-0"><i class="bi bi-cart text-primary me-1"></i> Purchase Items</h5>
+                                                <button type="button" class="btn btn-sm btn-primary" id="addRowBtn">
+                                                    <i class="bi bi-plus-circle me-1"></i> Add Product
+                                                </button>
+                                            </div>
                                             <div style="max-height: 300px; overflow-y: scroll;">
-                                                <table class="table mt-3 table-bordered">
+                                                <table class="table table-bordered">
                                                     <thead>
                                                         <tr class="text-center">
                                                             <th>Product</th>
@@ -239,14 +260,12 @@
 @endif
 
 
-@if ($errors->any())
+@if (isset($errors) && $errors->any())
 <script>
     Swal.fire({
         icon: 'error',
         title: 'Oops...',
-        html: {
-            !!json_encode(implode('<br>', $errors - > all())) !!
-        },
+        html: {!! json_encode(implode('<br>', $errors->all())) !!},
         confirmButtonColor: '#d33',
     });
 </script>
@@ -344,8 +363,26 @@
             }
 
 
-            // Edit form me bhi ek extra blank row ho, taake user new product search kare
-            if ($("#purchaseItems tr").length > 0) {
+            // Toggle warehouse dropdown based on Shop vs Warehouse
+            $(document).on('change', '.purchaseType', function () {
+                if ($(this).val() === 'warehouse') {
+                    $('#warehouseBox').removeClass('d-none');
+                    $('select[name="warehouse_id"]').prop('required', true);
+                } else {
+                    $('#warehouseBox').addClass('d-none');
+                    $('select[name="warehouse_id"]').prop('required', false);
+                    $('select[name="warehouse_id"]').val('');
+                }
+            });
+
+            // Add Product button click
+            $('#addRowBtn').on('click', function() {
+                appendBlankRow();
+                $('#purchaseItems tr:last .productSearch').focus();
+            });
+
+            // Sirf tab blank row lagayein agar table bilkul khali ho
+            if ($("#purchaseItems tr").length === 0) {
                 appendBlankRow();
             }
 

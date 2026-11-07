@@ -739,7 +739,8 @@ class ReportingController extends Controller
             ->whereNotIn('customer_id', function ($q) {
                 $q->select('customer_id')->from('customers')->where('customer_id', 'LIKE', 'VC-%');
             })
-            ->select('id', 'customer_name')
+            ->select('id', 'customer_name', 'customer_id', 'mobile')
+            ->orderBy('customer_name', 'asc')
             ->get();
 
         return view('admin_panel.reporting.customer_ledger_report', compact('customers'));
@@ -750,7 +751,8 @@ class ReportingController extends Controller
         $dualParties = DB::table('customers')
             ->where('customer_type', 'Dual Party')
             ->orWhere('customer_id', 'LIKE', 'VC-%')
-            ->select('id', 'customer_name')
+            ->select('id', 'customer_name', 'customer_id', 'mobile')
+            ->orderBy('customer_name', 'asc')
             ->get();
 
         return view('admin_panel.reporting.dual_party_ledger_report', compact('dualParties'));
@@ -1155,7 +1157,8 @@ class ReportingController extends Controller
             
         $vendors = DB::table('vendors')
             ->whereNotIn('name', $dualPartyNames)
-            ->select('id', 'name')
+            ->select('id', 'name', 'phone')
+            ->orderBy('name', 'asc')
             ->get();
 
         return view('admin_panel.reporting.vendor_ledger_report', compact('vendors'));

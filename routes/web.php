@@ -119,6 +119,7 @@ Route::middleware('auth')->group(function () {
 
 
     // New
+    Route::get('/search-customers', [CustomerController::class, 'searchCustomers'])->name('customers.search');
     Route::get('/customers/inactive', [CustomerController::class, 'inactiveCustomers'])->name('customers.inactive');
     Route::get('/customers/inactive/{id}', [CustomerController::class, 'markInactive'])->name('customers.markInactive');
     Route::get('customers/toggle-status/{id}', [CustomerController::class, 'toggleStatus'])->name('customers.toggleStatus');

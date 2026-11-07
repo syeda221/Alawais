@@ -240,7 +240,7 @@
 
     <div class="actions">
         <button class="btn" onclick="window.print()">Print</button>
-        <button class="btn" onclick="window.close()">Close</button>
+        <button class="btn" type="button" onclick="closeOrBack()">Close</button>
     </div>
 
     <div class="page-container">
@@ -420,6 +420,16 @@
                 }, 500);
             }
         });
+        function closeOrBack() {
+            window.close();
+            setTimeout(function() {
+                if (window.history.length > 1) {
+                    window.history.back();
+                } else {
+                    window.location.href = "{{ route('sale.index') }}";
+                }
+            }, 100);
+        }
     </script>
 </body>
 

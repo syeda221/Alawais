@@ -67,7 +67,10 @@ class PurchaseController extends Controller
                 : $row->gatepass_date;
         });
 
-        return view('admin_panel.purchase.index', compact('Purchase'))
+        $vendors = Vendor::orderBy('name', 'asc')->get();
+        $warehouses = Warehouse::orderBy('warehouse_name', 'asc')->get();
+
+        return view('admin_panel.purchase.index', compact('Purchase', 'vendors', 'warehouses'))
             ->with([
                 'start_date' => $request->start_date,
                 'end_date'   => $request->end_date,
@@ -494,95 +497,159 @@ class PurchaseController extends Controller
             'invoice_no'      => 'nullable|string',
             'vendor_id'       => 'nullable|exists:vendors,id',
             'purchase_date'   => 'nullable|date',
+            'purchase_to'     => 'nullable|in:shop,warehouse',
             'warehouse_id'    => 'nullable|exists:warehouses,id',
             'note'            => 'nullable|string',
+            'job_description' => 'nullable|string',
             'discount'        => 'nullable|numeric|min:0',
             'extra_cost'      => 'nullable|numeric|min:0',
 
-            'product_id'      => 'array',
+            'product_id'      => 'nullable|array',
             'product_id.*'    => 'nullable|exists:products,id',
 
-            'qty'             => 'array',
-            'qty.*'           => 'nullable|required_with:product_id.*|numeric|min:1',
+            'qty'             => 'nullable|array',
+            'qty.*'           => 'nullable|numeric|min:0',
 
-            'price'           => 'array',
-            'price.*'         => 'nullable|required_with:product_id.*|numeric|min:0',
+            'price'           => 'nullable|array',
+            'price.*'         => 'nullable|numeric|min:0',
 
-            'unit'            => 'array',
-            'unit.*'          => 'nullable|required_with:product_id.*|string',
+            'unit'            => 'nullable|array',
+            'unit.*'          => 'nullable|string',
 
             'item_disc'       => 'nullable|array',
             'item_disc.*'     => 'nullable|numeric|min:0',
         ]);
 
         DB::transaction(function () use ($validated, $request, $id) {
-            $purchase = Purchase::findOrFail($id);
+            $purchase = Purchase::with('items')->findOrFail($id);
 
-            // Pehle purchase ke purane items delete karenge
+            // Revert previous stock changes
+            $oldPurchaseTo = $purchase->purchase_to;
+            $oldWarehouseId = $purchase->warehouse_id;
+
+            foreach ($purchase->items as $oldItem) {
+                if ($oldPurchaseTo === 'shop') {
+                    $stock = Stock::where('product_id', $oldItem->product_id)->first();
+                    if ($stock) {
+                        $stock->qty = max(0, $stock->qty - $oldItem->qty);
+                        $stock->save();
+                    }
+                } elseif ($oldPurchaseTo === 'warehouse' && $oldWarehouseId) {
+                    $whStock = WarehouseStock::where('warehouse_id', $oldWarehouseId)
+                        ->where('product_id', $oldItem->product_id)
+                        ->first();
+                    if ($whStock) {
+                        $whStock->quantity = max(0, $whStock->quantity - $oldItem->qty);
+                        $whStock->save();
+                    }
+                }
+            }
+
+            // Purane items delete karenge
             $purchase->items()->delete();
 
             $subtotal = 0;
+            $purchaseTo = $request->purchase_to ?? $purchase->purchase_to ?? 'shop';
+            $warehouseId = ($purchaseTo === 'warehouse') ? ($request->warehouse_id ?? null) : null;
 
-            // Naye items insert karna
-            foreach ($validated['product_id'] as $index => $productId) {
-                $qty   = $validated['qty'][$index]   ?? 0;
-                $price = $validated['price'][$index] ?? 0;
+            // Naye items insert karna aur stock adjust karna
+            if (!empty($request->product_id) && is_array($request->product_id)) {
+                foreach ($request->product_id as $index => $productId) {
+                    $qty   = isset($request->qty[$index]) ? floatval($request->qty[$index]) : 0;
+                    $price = isset($request->price[$index]) ? floatval($request->price[$index]) : 0;
 
-                if (empty($productId) || empty($qty) || empty($price)) {
-                    continue;
+                    if (empty($productId) || $qty <= 0) {
+                        continue;
+                    }
+
+                    $disc = isset($request->item_disc[$index]) ? floatval($request->item_disc[$index]) : 0;
+                    $unit = $request->unit[$index] ?? null;
+                    $lineTotal = ($price * $qty) - $disc;
+                    if ($lineTotal < 0) $lineTotal = 0;
+
+                    PurchaseItem::create([
+                        'purchase_id'   => $purchase->id,
+                        'product_id'    => $productId,
+                        'unit'          => $unit,
+                        'price'         => $price,
+                        'item_discount' => $disc,
+                        'qty'           => $qty,
+                        'line_total'    => $lineTotal,
+                    ]);
+
+                    $subtotal += $lineTotal;
+
+                    // Add new stock
+                    if ($purchaseTo === 'shop') {
+                        $stock = Stock::where('product_id', $productId)->first();
+                        if ($stock) {
+                            $stock->qty += $qty;
+                            $stock->save();
+                        } else {
+                            Stock::create([
+                                'branch_id'  => auth()->id() ?? 1,
+                                'product_id' => $productId,
+                                'qty'        => $qty,
+                            ]);
+                        }
+                    } elseif ($purchaseTo === 'warehouse' && $warehouseId) {
+                        $whStock = WarehouseStock::where('warehouse_id', $warehouseId)
+                            ->where('product_id', $productId)
+                            ->first();
+                        if ($whStock) {
+                            $whStock->quantity += $qty;
+                            $whStock->save();
+                        } else {
+                            WarehouseStock::create([
+                                'warehouse_id' => $warehouseId,
+                                'product_id'   => $productId,
+                                'quantity'     => $qty,
+                                'remarks'      => 'Purchase Edit Entry',
+                            ]);
+                        }
+                    }
                 }
-
-                $disc = $validated['item_disc'][$index] ?? 0;
-                $unit = $validated['unit'][$index] ?? null;
-                $lineTotal = ($price * $qty) - $disc;
-
-                PurchaseItem::create([
-                    'purchase_id'   => $purchase->id,
-                    'product_id'    => $productId,
-                    'unit'          => $unit,
-                    'price'         => $price,
-                    'item_discount' => $disc,
-                    'qty'           => $qty,
-                    'line_total'    => $lineTotal,
-                ]);
-
-                $subtotal += $lineTotal;
             }
 
             // Final calculations
-            $discount   = $request->discount ?? 0;
-            $extraCost  = $request->extra_cost ?? 0;
-            $netAmount  = ($subtotal - $discount) + $extraCost;
+            $discount   = floatval($request->discount ?? 0);
+            $extraCost  = floatval($request->extra_cost ?? 0);
+            $netAmount  = max(0, ($subtotal - $discount) + $extraCost);
 
             // Purchase table update
             $purchase->update([
-                'vendor_id'     => $validated['vendor_id'],
-                'warehouse_id'  => $validated['warehouse_id'],
-                'purchase_date' => $validated['purchase_date'],
-                'invoice_no'    => $validated['invoice_no'],
-                'note'          => $validated['note'],
-                'subtotal'      => $subtotal,
-                'discount'      => $discount,
-                'extra_cost'    => $extraCost,
-                'net_amount'    => $netAmount,
-                'due_amount'    => $netAmount,
+                'vendor_id'       => $request->vendor_id ?? $purchase->vendor_id,
+                'purchase_to'     => $purchaseTo,
+                'warehouse_id'    => $warehouseId,
+                'purchase_date'   => $request->purchase_date ?? $purchase->purchase_date,
+                'invoice_no'      => $request->invoice_no ?? $purchase->invoice_no,
+                'note'            => $request->note ?? $purchase->note,
+                'job_description' => $request->job_description ?? $purchase->job_description,
+                'subtotal'        => $subtotal,
+                'discount'        => $discount,
+                'extra_cost'      => $extraCost,
+                'net_amount'      => $netAmount,
+                'due_amount'      => $netAmount,
             ]);
 
             // Vendor Ledger Update
-            $previousLedger = VendorLedger::where('vendor_id', $validated['vendor_id'])->first();
-            $openingBalance = $previousLedger ? $previousLedger->closing_balance : 0;
-            $newClosingBalance = $openingBalance + $netAmount;
+            $vendorId = $request->vendor_id ?? $purchase->vendor_id;
+            if ($vendorId) {
+                $previousLedger = VendorLedger::where('vendor_id', $vendorId)->first();
+                $openingBalance = $previousLedger ? $previousLedger->closing_balance : 0;
+                $newClosingBalance = $openingBalance + $netAmount;
 
-            VendorLedger::updateOrCreate(
-                ['vendor_id' => $validated['vendor_id']],
-                [
-                    'vendor_id'         => $validated['vendor_id'],
-                    'admin_or_user_id'  => auth()->id(),
-                    'previous_balance'  => $subtotal,
-                    'closing_balance'   => $newClosingBalance,
-                    'opening_balance'   => $openingBalance,
-                ]
-            );
+                VendorLedger::updateOrCreate(
+                    ['vendor_id' => $vendorId],
+                    [
+                        'vendor_id'         => $vendorId,
+                        'admin_or_user_id'  => auth()->id(),
+                        'previous_balance'  => $subtotal,
+                        'closing_balance'   => $newClosingBalance,
+                        'opening_balance'   => $openingBalance,
+                    ]
+                );
+            }
         });
 
         return redirect()->route('Purchase.home')->with('success', 'Purchase updated successfully!');
