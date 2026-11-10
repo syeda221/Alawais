@@ -51,8 +51,8 @@
                                 <td>{{ $ledger->vendor->name ?? 'N/A' }}</td>
                                 <td>{{ $ledger->vendor->address ?? 'N/A' }}</td>
 
-                                <td>{{ $ledger->opening_balance}}</td>
-                                <td>{{ $ledger->previous_balance }}</td>
+                                <td>{{ number_format((float) ($ledger->opening_balance ?? 0), 0) }}</td>
+                                <td>{{ number_format((float) ($ledger->previous_balance ?? 0), 0) }}</td>
                                 <td id="closing_balance_{{ $ledger->id }}">{{ number_format((float) ($ledger->closing_balance ?? 0), 0) }}</td>
 
                             </tr>

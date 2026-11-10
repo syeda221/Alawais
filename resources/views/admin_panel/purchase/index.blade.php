@@ -508,6 +508,12 @@
                             $paidAmount = (float)($purchase->paid_amount ?? 0);
                             $dueAmount = (float)($purchase->due_amount ?? 0);
                             $isReturned = !empty($purchase->return);
+                            $returnedQty = 0;
+                            $returnedAmount = 0;
+                            if ($isReturned && isset($purchase->return->items)) {
+                                $returnedQty = floatval($purchase->return->items->sum('qty'));
+                                $returnedAmount = floatval($purchase->return->net_amount ?? 0);
+                            }
                             $statusText = $isReturned ? 'Returned' : 'Completed';
                         @endphp
                         <tr @if($isReturned) class="returned-row" @endif data-date="{{ $dateStr }}" data-vendor="{{ strtolower($vendorName) }}" data-dest="{{ strtolower($dest) }}" data-status="{{ $statusText }}">
@@ -535,20 +541,44 @@
                             <td>
                                 <div class="product-list" style="max-height:85px; overflow-y:auto;">
                                     @foreach($itemsList as $it)
+                                        @php
+                                            $itemRetQty = ($isReturned && isset($purchase->return->items))
+                                                ? floatval($purchase->return->items->where('product_id', $it->product_id)->sum('qty'))
+                                                : 0;
+                                        @endphp
                                         <div class="purchase-product-pill">
                                             <span>{{ $it->product->item_name ?? 'N/A' }}</span>
-                                            <span class="badge-qty">x{{ $it->qty ?? 1 }}</span>
+                                            @if($itemRetQty > 0)
+                                                <span class="badge-qty">x{{ ($it->qty ?? 1) - $itemRetQty }}</span>
+                                                <span class="badge bg-danger ms-1" style="font-size:10px;">-{{ $itemRetQty }} Ret</span>
+                                            @else
+                                                <span class="badge-qty">x{{ $it->qty ?? 1 }}</span>
+                                            @endif
                                         </div>
                                     @endforeach
                                 </div>
                             </td>
                             <td class="text-center font-monospace fw-bold">
-                                {{ $totalQty }}
+                                @if($returnedQty > 0)
+                                    <div>{{ $totalQty - $returnedQty }}</div>
+                                    <small class="text-danger fw-semibold d-block" style="font-size:11px;">(-{{ $returnedQty }} Ret)</small>
+                                @else
+                                    {{ $totalQty }}
+                                @endif
                             </td>
-                            <td class="text-end pe-3" data-order="{{ $netAmount }}">
-                                <span class="fw-bold text-dark" style="font-size:13.5px;">
-                                    Rs {{ number_format($netAmount, 2) }}
-                                </span>
+                            <td class="text-end pe-3" data-order="{{ $netAmount - $returnedAmount }}">
+                                @if($returnedAmount > 0)
+                                    <span class="fw-bold text-dark" style="font-size:13.5px;">
+                                        Rs {{ number_format($netAmount - $returnedAmount, 2) }}
+                                    </span>
+                                    <small class="text-muted text-decoration-line-through d-block" style="font-size:11px;">
+                                        Rs {{ number_format($netAmount, 2) }}
+                                    </small>
+                                @else
+                                    <span class="fw-bold text-dark" style="font-size:13.5px;">
+                                        Rs {{ number_format($netAmount, 2) }}
+                                    </span>
+                                @endif
                             </td>
                             <td>
                                 <div><small class="text-success fw-bold">Paid: Rs {{ number_format($paidAmount, 0) }}</small></div>
@@ -556,6 +586,9 @@
                                     <div><small class="text-danger fw-bold">Due: Rs {{ number_format($dueAmount, 0) }}</small></div>
                                 @else
                                     <div><small class="text-muted">Due: Rs 0</small></div>
+                                @endif
+                                @if($returnedAmount > 0)
+                                    <div><small class="text-danger" style="font-size:10.5px;">(Ret: Rs {{ number_format($returnedAmount, 0) }})</small></div>
                                 @endif
                             </td>
                             <td class="text-center" data-order="{{ $dateStr }}">

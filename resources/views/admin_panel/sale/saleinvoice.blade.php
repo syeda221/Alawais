@@ -122,6 +122,7 @@
             border-collapse: collapse;
             font-size: 11px;
             margin-bottom: 8px;
+            table-layout: fixed;
         }
 
         .items-table th {
@@ -145,23 +146,27 @@
 
         /* Column Widths and Alignment */
         .col-item {
-            width: 45%;
+            width: 44%;
             text-align: left;
+            word-break: break-word;
         }
 
         .col-qty {
-            width: 15%;
+            width: 16%;
             text-align: center;
+            white-space: nowrap;
         }
 
         .col-rate {
             width: 20%;
             text-align: right;
+            white-space: nowrap;
         }
 
         .col-total {
             width: 20%;
             text-align: right;
+            white-space: nowrap;
         }
 
         /* Totals Section */
@@ -218,19 +223,29 @@
         }
 
         @media print {
-            @page { margin: 0; }
-            body {
+            @page {
                 margin: 0;
+            }
+
+            html,
+            body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #fff !important;
+                width: 100% !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
 
             .actions {
-                display: none;
+                display: none !important;
             }
 
             .page-container {
-                width: 100%;
-                margin: 0;
-                padding: 0;
+                width: 78mm !important;
+                max-width: 78mm !important;
+                margin: 0 auto !important;
+                padding: 2mm !important;
             }
         }
     </style>

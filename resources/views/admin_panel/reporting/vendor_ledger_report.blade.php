@@ -263,6 +263,9 @@
 
 
 @section('scripts')
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
 <script>
     $(document).ready(function() {
         // Initialize Select2 on Vendor with instant search
@@ -395,7 +398,7 @@
 
         const opt = {
             margin: [10, 10, 10, 10], // top, left, bottom, right
-            filename: 'Customer_Ledger.pdf',
+            filename: 'Vendor_Ledger.pdf',
             image: {
                 type: 'jpeg',
                 quality: 0.98

@@ -161,12 +161,17 @@
             }
 
             rows.forEach(function(r, idx) {
-                tableContent += `<tr>
+                let isRet = (r.source_type === 'return');
+                let mult = isRet ? -1 : 1;
+                let rowClass = isRet ? 'table-danger' : '';
+
+                tableContent += `<tr class="${rowClass}">
             <td>${idx + 1}</td>
             <td>
     <span class="badge ${
-        r.source_type === 'inward' ? 'bg-danger' :
-        r.source_type === 'purchase' ? 'bg-success' : 'bg-secondary'
+        r.source_type === 'inward' ? 'bg-info' :
+        r.source_type === 'purchase' ? 'bg-success' :
+        r.source_type === 'return' ? 'bg-danger' : 'bg-secondary'
     }">
         ${r.source_type}
     </span>
@@ -178,26 +183,28 @@
             <td>${r.vendor_name}</td>
             <td>${r.item_code}</td>
             <td>${r.item_name}</td>
-            <td>${parseFloat(r.qty).toFixed(2)}</td>
-            <td>${r.unit}</td>
-            <td>${parseFloat(r.price).toFixed(2)}</td>
-            <td>${parseFloat(r.item_discount).toFixed(2)}</td>
-            <td>${parseFloat(r.line_total).toFixed(2)}</td>
-            <td>${parseFloat(r.subtotal).toFixed(2)}</td>
-            <td>${parseFloat(r.discount).toFixed(2)}</td>
-            <td>${parseFloat(r.extra_cost).toFixed(2)}</td>
-            <td>${parseFloat(r.net_amount).toFixed(2)}</td>
-            <td>${parseFloat(r.paid_amount).toFixed(2)}</td>
-            <td>${parseFloat(r.due_amount).toFixed(2)}</td>
+            <td>${isRet ? '<span class="text-danger fw-bold">-' + parseFloat(r.qty).toFixed(2) + '</span>' : parseFloat(r.qty).toFixed(2)}</td>
+            <td>${r.unit || '-'}</td>
+            <td>${parseFloat(r.price || 0).toFixed(2)}</td>
+            <td>${parseFloat(r.item_discount || 0).toFixed(2)}</td>
+            <td>${isRet ? '<span class="text-danger">-' + parseFloat(r.line_total || 0).toFixed(2) + '</span>' : parseFloat(r.line_total || 0).toFixed(2)}</td>
+            <td>${isRet ? '<span class="text-danger">-' + parseFloat(r.subtotal || 0).toFixed(2) + '</span>' : parseFloat(r.subtotal || 0).toFixed(2)}</td>
+            <td>${parseFloat(r.discount || 0).toFixed(2)}</td>
+            <td>${parseFloat(r.extra_cost || 0).toFixed(2)}</td>
+            <td>${isRet ? '<span class="text-danger">-' + parseFloat(r.net_amount || 0).toFixed(2) + '</span>' : parseFloat(r.net_amount || 0).toFixed(2)}</td>
+            <td>${parseFloat(r.paid_amount || 0).toFixed(2)}</td>
+            <td>${isRet ? '-' : parseFloat(r.due_amount || 0).toFixed(2)}</td>
         </tr>`;
 
-                // Grand totals
-                grandSubtotal += parseFloat(r.subtotal);
-                grandDiscount += parseFloat(r.discount);
-                grandExtraCost += parseFloat(r.extra_cost);
-                grandNet += parseFloat(r.net_amount);
-                grandPaid += parseFloat(r.paid_amount);
-                grandDue += parseFloat(r.due_amount);
+                // Grand totals (returns reduce the totals)
+                grandSubtotal += mult * (parseFloat(r.subtotal) || 0);
+                grandDiscount += (parseFloat(r.discount) || 0);
+                grandExtraCost += (parseFloat(r.extra_cost) || 0);
+                grandNet += mult * (parseFloat(r.net_amount) || 0);
+                grandPaid += (parseFloat(r.paid_amount) || 0);
+                if (!isRet) {
+                    grandDue += (parseFloat(r.due_amount) || 0);
+                }
             });
 
             // Grand total row

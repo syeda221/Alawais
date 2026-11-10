@@ -27,19 +27,61 @@ class VendorController extends Controller
     // Store or update vendor information
     public function store(Request $request)
     {
+        $newOpeningBalance = (float)($request->input('opening_balance') ?? 0);
+
         if ($request->id) {
-            // Update existing vendor (prevent balance update)
-            Vendor::findOrFail($request->id)->update($request->except('opening_balance'));
+            $vendor = Vendor::findOrFail($request->id);
+            $oldOpeningBalance = (float)($vendor->opening_balance ?? 0);
+
+            $vendor->update([
+                'name'            => $request->name,
+                'phone'           => $request->phone,
+                'address'         => $request->address,
+                'opening_balance' => $newOpeningBalance,
+            ]);
+
+            // If opening balance changed, update vendor ledger entries
+            if ($oldOpeningBalance != $newOpeningBalance) {
+                $difference = $newOpeningBalance - $oldOpeningBalance;
+                $ledgers = VendorLedger::where('vendor_id', $vendor->id)->orderBy('id', 'asc')->get();
+
+                if ($ledgers->isNotEmpty()) {
+                    foreach ($ledgers as $index => $ledger) {
+                        $updateData = [];
+                        if ($index === 0) {
+                            $updateData['opening_balance'] = $newOpeningBalance;
+                            $updateData['closing_balance'] = (float)$ledger->closing_balance + $difference;
+                        } else {
+                            $updateData['previous_balance'] = (float)$ledger->previous_balance + $difference;
+                            $updateData['closing_balance'] = (float)$ledger->closing_balance + $difference;
+                        }
+                        $ledger->update($updateData);
+                    }
+                } else {
+                    VendorLedger::create([
+                        'vendor_id'        => $vendor->id,
+                        'admin_or_user_id' => Auth::id(),
+                        'opening_balance'  => $newOpeningBalance,
+                        'closing_balance'  => $newOpeningBalance,
+                        'previous_balance' => 0,
+                    ]);
+                }
+            }
         } else {
             // Create a new vendor and ledger entry
-            $vendor = Vendor::create($request->all());
+            $vendor = Vendor::create([
+                'name'            => $request->name,
+                'phone'           => $request->phone,
+                'address'         => $request->address,
+                'opening_balance' => $newOpeningBalance,
+            ]);
 
             // Create ledger entry
             VendorLedger::create([
-                'vendor_id' => $vendor->id,
+                'vendor_id'        => $vendor->id,
                 'admin_or_user_id' => Auth::id(),
-                'opening_balance' => $request->opening_balance ?? 0,
-                'closing_balance' => $request->opening_balance ?? 0,
+                'opening_balance'  => $newOpeningBalance,
+                'closing_balance'  => $newOpeningBalance,
                 'previous_balance' => $request->previous_balance ?? 0,
             ]);
         }

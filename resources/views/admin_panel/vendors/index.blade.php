@@ -12,8 +12,8 @@
                 </div>
                 <div class="page-btn d-flex justify-content-end col-lg-6">
                     <button class="btn btn-outline-primary mb-2" data-bs-toggle="modal" data-bs-target="#vendorModal" onclick="clearVendor()">Add Vendor</button>
-                    <a href="{{ url('vendors-ledger') }}" class="btn btn-sm btn-danger ms-2 mb-2">Ledger</a>
-                    <a href="{{ route('vendor.payments') }}" class="btn btn-sm btn-danger ms-2 mb-2">Payments</a>
+                    {{-- <a href="{{ url('vendors-ledger') }}" class="btn btn-sm btn-danger ms-2 mb-2">Ledger</a> --}}
+                    {{-- <a href="{{ route('vendor.payments') }}" class="btn btn-sm btn-danger ms-2 mb-2">Payments</a> --}}
                     <a href="{{ url('vendor/bilties') }}" class="btn btn-sm btn-danger ms-2 mb-2">Bilty</a>
                 </div>
             </div>
@@ -119,7 +119,7 @@
             $('#vendor_id').val(id);
             $('#vname').val(name);
             $('#vphone').val(phone);
-            $('#opening_balance').val(balance).prop('readonly', true);
+            $('#opening_balance').val(balance).prop('readonly', false);
             $('#vaddress').val(address);
 
             // Show modal

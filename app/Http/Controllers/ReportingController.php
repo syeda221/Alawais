@@ -541,9 +541,39 @@ class ReportingController extends Controller
             $inwardQuery->whereBetween('inward_gatepasses.gatepass_date', [$startDate, $endDate]);
         }
 
+        /* ================= PURCHASE RETURNS ================= */
+        $returnQuery = DB::table('purchase_returns')
+            ->leftJoin('purchase_return_items', 'purchase_returns.id', '=', 'purchase_return_items.purchase_return_id')
+            ->leftJoin('products', 'purchase_return_items.product_id', '=', 'products.id')
+            ->leftJoin('vendors', 'purchase_returns.vendor_id', '=', 'vendors.id')
+            ->select(
+                DB::raw("'return' as source_type"),
+                'purchase_returns.return_date as purchase_date',
+                'purchase_returns.return_invoice as invoice_no',
+                'vendors.name as vendor_name',
+                'products.item_code',
+                'products.item_name',
+                'purchase_return_items.qty',
+                DB::raw('COALESCE(purchase_return_items.unit, products.unit_id) as unit'),
+                'purchase_return_items.price',
+                'purchase_return_items.item_discount',
+                'purchase_return_items.line_total',
+                'purchase_returns.bill_amount as subtotal',
+                'purchase_returns.extra_discount as discount',
+                DB::raw('0 as extra_cost'),
+                'purchase_returns.net_amount',
+                'purchase_returns.paid as paid_amount',
+                DB::raw('0 as due_amount')
+            );
+
+        if ($startDate && $endDate) {
+            $returnQuery->whereBetween('purchase_returns.return_date', [$startDate, $endDate]);
+        }
+
         /* ================= UNION ================= */
         $data = $purchaseQuery
             ->unionAll($inwardQuery)
+            ->unionAll($returnQuery)
             ->orderBy('purchase_date', 'desc')
             ->get();
         return response()->json([

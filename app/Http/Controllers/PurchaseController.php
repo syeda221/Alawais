@@ -26,7 +26,7 @@ class PurchaseController extends Controller
             'warehouse',
             'vendor',
             'items.product',
-            'return'
+            'return.items'
         ]);
 
         if ($request->start_date && $request->end_date) {
@@ -104,6 +104,7 @@ class PurchaseController extends Controller
             'warehouse_id'    => 'nullable|required_if:purchase_to,warehouse|exists:warehouses,id',
 
             'note'            => 'nullable|string',
+            'job_description' => 'nullable|string',
             'discount'        => 'nullable|numeric|min:0',
             'extra_cost'      => 'nullable|numeric|min:0',
 
@@ -147,6 +148,7 @@ class PurchaseController extends Controller
                     : null,
 
                 'note'          => $validated['note'] ?? null,
+                'job_description' => $validated['job_description'] ?? null,
 
                 'subtotal'      => 0,
                 'discount'      => 0,
@@ -251,19 +253,25 @@ class PurchaseController extends Controller
 
             /* ================= VENDOR LEDGER ================= */
 
-            $prevLedger = VendorLedger::where('vendor_id', $validated['vendor_id'] ?? null)->first();
-            $opening    = $prevLedger ? $prevLedger->closing_balance : 0;
-            $closing    = $opening + $netAmount;
+            $ledger = VendorLedger::where('vendor_id', $validated['vendor_id'] ?? null)->latest('id')->first();
+            $vendor = Vendor::find($validated['vendor_id'] ?? null);
+            $vendorOpening = (float)($vendor->opening_balance ?? 0);
 
-            VendorLedger::updateOrCreate(
-                ['vendor_id' => $validated['vendor_id'] ?? null],
-                [
+            if ($ledger) {
+                $prevBalance = (float)$ledger->closing_balance;
+                $ledger->update([
+                    'previous_balance' => $prevBalance,
+                    'closing_balance'  => $prevBalance + $netAmount,
+                ]);
+            } else {
+                VendorLedger::create([
+                    'vendor_id'        => $validated['vendor_id'],
                     'admin_or_user_id' => auth()->id(),
-                    'opening_balance'  => $opening,
-                    'previous_balance' => $subtotal,
-                    'closing_balance'  => $closing,
-                ]
-            );
+                    'opening_balance'  => $vendorOpening,
+                    'previous_balance' => $vendorOpening,
+                    'closing_balance'  => $vendorOpening + $netAmount,
+                ]);
+            }
         });
 
         return redirect()
@@ -522,6 +530,8 @@ class PurchaseController extends Controller
 
         DB::transaction(function () use ($validated, $request, $id) {
             $purchase = Purchase::with('items')->findOrFail($id);
+            $oldVendorId = $purchase->vendor_id;
+            $oldNetAmount = floatval($purchase->net_amount ?? 0);
 
             // Revert previous stock changes
             $oldPurchaseTo = $purchase->purchase_to;
@@ -633,22 +643,47 @@ class PurchaseController extends Controller
             ]);
 
             // Vendor Ledger Update
-            $vendorId = $request->vendor_id ?? $purchase->vendor_id;
-            if ($vendorId) {
-                $previousLedger = VendorLedger::where('vendor_id', $vendorId)->first();
-                $openingBalance = $previousLedger ? $previousLedger->closing_balance : 0;
-                $newClosingBalance = $openingBalance + $netAmount;
-
-                VendorLedger::updateOrCreate(
-                    ['vendor_id' => $vendorId],
-                    [
-                        'vendor_id'         => $vendorId,
-                        'admin_or_user_id'  => auth()->id(),
-                        'previous_balance'  => $subtotal,
-                        'closing_balance'   => $newClosingBalance,
-                        'opening_balance'   => $openingBalance,
-                    ]
-                );
+            $newVendorId = $request->vendor_id ?? $purchase->vendor_id;
+            if ($oldVendorId == $newVendorId && $newVendorId) {
+                $difference = $netAmount - $oldNetAmount;
+                if ($difference != 0) {
+                    $ledger = VendorLedger::where('vendor_id', $newVendorId)->latest('id')->first();
+                    if ($ledger) {
+                        $ledger->update([
+                            'previous_balance' => $ledger->closing_balance,
+                            'closing_balance'  => $ledger->closing_balance + $difference,
+                        ]);
+                    }
+                }
+            } elseif ($oldVendorId != $newVendorId) {
+                if ($oldVendorId) {
+                    $oldLedger = VendorLedger::where('vendor_id', $oldVendorId)->latest('id')->first();
+                    if ($oldLedger) {
+                        $oldLedger->update([
+                            'previous_balance' => $oldLedger->closing_balance,
+                            'closing_balance'  => $oldLedger->closing_balance - $oldNetAmount,
+                        ]);
+                    }
+                }
+                if ($newVendorId) {
+                    $newLedger = VendorLedger::where('vendor_id', $newVendorId)->latest('id')->first();
+                    if ($newLedger) {
+                        $newLedger->update([
+                            'previous_balance' => $newLedger->closing_balance,
+                            'closing_balance'  => $newLedger->closing_balance + $netAmount,
+                        ]);
+                    } else {
+                        $newVendor = Vendor::find($newVendorId);
+                        $vOpening = (float)($newVendor->opening_balance ?? 0);
+                        VendorLedger::create([
+                            'vendor_id'        => $newVendorId,
+                            'admin_or_user_id' => auth()->id(),
+                            'opening_balance'  => $vOpening,
+                            'previous_balance' => $vOpening,
+                            'closing_balance'  => $vOpening + $netAmount,
+                        ]);
+                    }
+                }
             }
         });
 
@@ -668,6 +703,19 @@ class PurchaseController extends Controller
     public function destroy($id)
     {
         $purchase = Purchase::findOrFail($id);
+        $vendorId = $purchase->vendor_id;
+        $netAmount = floatval($purchase->net_amount ?? 0);
+
+        if ($vendorId && $netAmount > 0) {
+            $ledger = VendorLedger::where('vendor_id', $vendorId)->latest('id')->first();
+            if ($ledger) {
+                $ledger->update([
+                    'previous_balance' => $ledger->closing_balance,
+                    'closing_balance'  => $ledger->closing_balance - $netAmount,
+                ]);
+            }
+        }
+
         $purchase->delete();
 
         return redirect()->back()->with('success', 'Purchase deleted successfully.');
@@ -809,19 +857,33 @@ class PurchaseController extends Controller
                 'balance'        => $netAmount,
             ]);
 
-            // Vendor Ledger
-            $ledger = \App\Models\VendorLedger::where('vendor_id', $validated['vendor_id'])->first();
-            $opening = $ledger->closing_balance ?? 0;
+            // Update original purchase due_amount
+            $origPurchase = Purchase::find($validated['purchase_id']);
+            if ($origPurchase) {
+                $origPurchase->due_amount = max(0, floatval($origPurchase->due_amount) - $netAmount);
+                $origPurchase->status_purchase = 'returned';
+                $origPurchase->save();
+            }
 
-            \App\Models\VendorLedger::updateOrCreate(
-                ['vendor_id' => $validated['vendor_id']],
-                [
+            // Vendor Ledger
+            $ledger = \App\Models\VendorLedger::where('vendor_id', $validated['vendor_id'])->latest('id')->first();
+            if ($ledger) {
+                $prevBalance = (float)$ledger->closing_balance;
+                $ledger->update([
+                    'previous_balance' => $prevBalance,
+                    'closing_balance'  => $prevBalance - $netAmount,
+                ]);
+            } else {
+                $vendor = Vendor::find($validated['vendor_id']);
+                $vendorOpening = (float)($vendor->opening_balance ?? 0);
+                \App\Models\VendorLedger::create([
+                    'vendor_id'        => $validated['vendor_id'],
                     'admin_or_user_id' => auth()->id(),
-                    'opening_balance'  => $opening,
-                    'closing_balance'  => $opening - $netAmount,
-                    'previous_balance' => $opening,
-                ]
-            );
+                    'opening_balance'  => $vendorOpening,
+                    'previous_balance' => $vendorOpening,
+                    'closing_balance'  => $vendorOpening - $netAmount,
+                ]);
+            }
         });
 
         return redirect()
