@@ -108,11 +108,12 @@ class CustomerController extends Controller
             ->where('customer', $customer->id)
             ->get()
             ->map(function ($r) {
+                $refundPaid = (float) ($r->cash ?? 0) + (float) ($r->card ?? 0);
                 return [
                     'date' => $r->created_at,
                     'invoice' => 'RET-' . $r->id,
-                    'description' => 'Sale Return (Ref: ' . $r->sale_id . ')',
-                    'debit' => 0,
+                    'description' => 'Sale Return (Ref: ' . $r->sale_id . ')' . ($refundPaid > 0 ? ' (Refund Paid: Rs.' . $refundPaid . ')' : ''),
+                    'debit' => $refundPaid,
                     'credit' => (float) $r->total_net,
                 ];
             });

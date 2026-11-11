@@ -986,6 +986,8 @@ class SaleController extends Controller
             $payAccountIds = $request->input('pay_account_id', []);
             $payAmounts    = $request->input('pay_amount', []);
             $totalRefunded = 0;
+            $primaryRefundAccountId = null;
+            $refundDetails = [];
             
             foreach ($payAccountIds as $i => $accId) {
                 $refundAmt = floatval($payAmounts[$i] ?? 0);
@@ -995,8 +997,21 @@ class SaleController extends Controller
                         $account->opening_balance = $account->opening_balance - $refundAmt;
                         $account->save();
                         $totalRefunded += $refundAmt;
+                        if ($primaryRefundAccountId === null) {
+                            $primaryRefundAccountId = (int) $accId;
+                        }
+                        $refundDetails[] = [
+                            'account_id' => (int) $accId,
+                            'amount'     => $refundAmt,
+                        ];
                     }
                 }
+            }
+
+            if ($primaryRefundAccountId !== null || !empty($refundDetails)) {
+                $saleReturn->account_id = $primaryRefundAccountId;
+                $saleReturn->refund_accounts = json_encode($refundDetails);
+                $saleReturn->save();
             }
 
             // -----------------------

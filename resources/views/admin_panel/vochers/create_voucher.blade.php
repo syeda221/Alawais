@@ -608,20 +608,30 @@ small.text-muted {
                             </div>
                             <div class="col-md-8">
                                 <div id="pi_customer_wrapper">
-                                    <label class="form-label">Select Customer <span class="text-danger">*</span></label>
+                                    <label class="form-label d-flex justify-content-between align-items-center">
+                                        <span>Select Customer <span class="text-danger">*</span></span>
+                                        <span class="party-balance-badge badge bg-light text-primary border" style="display:none; font-size:11px;">
+                                            Current Balance: <span class="bal-amount fw-bold">Rs 0</span>
+                                        </span>
+                                    </label>
                                     <select name="customer_id" class="form-select select2-customer" required>
                                         <option value="">-- Choose Customer --</option>
                                         @foreach($customers as $c)
-                                        <option value="{{ $c->id }}">{{ $c->customer_name }}</option>
+                                        <option value="{{ $c->id }}" data-balance="{{ $c->current_balance ?? 0 }}">{{ $c->customer_name }} (Bal: Rs {{ number_format($c->current_balance ?? 0, 0) }})</option>
                                         @endforeach
                                     </select>
                                 </div>
                                 <div id="pi_vendor_wrapper" style="display:none;">
-                                    <label class="form-label">Select Vendor <span class="text-danger">*</span></label>
+                                    <label class="form-label d-flex justify-content-between align-items-center">
+                                        <span>Select Vendor <span class="text-danger">*</span></span>
+                                        <span class="party-balance-badge badge bg-light text-primary border" style="display:none; font-size:11px;">
+                                            Current Balance: <span class="bal-amount fw-bold">Rs 0</span>
+                                        </span>
+                                    </label>
                                     <select name="vendor_id" class="form-select select2-vendor">
                                         <option value="">-- Choose Vendor --</option>
                                         @foreach($vendors as $v)
-                                        <option value="{{ $v->id }}">{{ $v->name }}</option>
+                                        <option value="{{ $v->id }}" data-balance="{{ $v->current_balance ?? 0 }}">{{ $v->name }} (Bal: Rs {{ number_format($v->current_balance ?? 0, 0) }})</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -686,20 +696,30 @@ small.text-muted {
                             </div>
                             <div class="col-md-8">
                                 <div id="po_vendor_wrapper">
-                                    <label class="form-label">Select Vendor <span class="text-danger">*</span></label>
+                                    <label class="form-label d-flex justify-content-between align-items-center">
+                                        <span>Select Vendor <span class="text-danger">*</span></span>
+                                        <span class="party-balance-badge badge bg-light text-danger border" style="display:none; font-size:11px;">
+                                            Current Balance: <span class="bal-amount fw-bold">Rs 0</span>
+                                        </span>
+                                    </label>
                                     <select name="vendor_id" class="form-select select2-vendor" required>
                                         <option value="">-- Choose Vendor --</option>
                                         @foreach($vendors as $v)
-                                        <option value="{{ $v->id }}">{{ $v->name }}</option>
+                                        <option value="{{ $v->id }}" data-balance="{{ $v->current_balance ?? 0 }}">{{ $v->name }} (Bal: Rs {{ number_format($v->current_balance ?? 0, 0) }})</option>
                                         @endforeach
                                     </select>
                                 </div>
                                 <div id="po_customer_wrapper" style="display:none;">
-                                    <label class="form-label">Select Customer <span class="text-danger">*</span></label>
+                                    <label class="form-label d-flex justify-content-between align-items-center">
+                                        <span>Select Customer <span class="text-danger">*</span></span>
+                                        <span class="party-balance-badge badge bg-light text-danger border" style="display:none; font-size:11px;">
+                                            Current Balance: <span class="bal-amount fw-bold">Rs 0</span>
+                                        </span>
+                                    </label>
                                     <select name="customer_id" class="form-select select2-customer">
                                         <option value="">-- Choose Customer --</option>
                                         @foreach($customers as $c)
-                                        <option value="{{ $c->id }}">{{ $c->customer_name }}</option>
+                                        <option value="{{ $c->id }}" data-balance="{{ $c->current_balance ?? 0 }}">{{ $c->customer_name }} (Bal: Rs {{ number_format($c->current_balance ?? 0, 0) }})</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -784,20 +804,30 @@ small.text-muted {
                                     </select>
                                 </div>
                                 <div id="inc_vendor_wrapper" style="display:none;">
-                                    <label class="form-label">Select Vendor <span class="text-danger">*</span></label>
+                                    <label class="form-label d-flex justify-content-between align-items-center">
+                                        <span>Select Vendor <span class="text-danger">*</span></span>
+                                        <span class="party-balance-badge badge bg-light text-success border" style="display:none; font-size:11px;">
+                                            Current Balance: <span class="bal-amount fw-bold">Rs 0</span>
+                                        </span>
+                                    </label>
                                     <select name="vendor_id" class="form-select select2-vendor">
                                         <option value="">-- Choose Vendor --</option>
                                         @foreach($vendors as $v)
-                                        <option value="{{ $v->id }}">{{ $v->name }}</option>
+                                        <option value="{{ $v->id }}" data-balance="{{ $v->current_balance ?? 0 }}">{{ $v->name }} (Bal: Rs {{ number_format($v->current_balance ?? 0, 0) }})</option>
                                         @endforeach
                                     </select>
                                 </div>
                                 <div id="inc_customer_wrapper" style="display:none;">
-                                    <label class="form-label">Select Customer <span class="text-danger">*</span></label>
+                                    <label class="form-label d-flex justify-content-between align-items-center">
+                                        <span>Select Customer <span class="text-danger">*</span></span>
+                                        <span class="party-balance-badge badge bg-light text-success border" style="display:none; font-size:11px;">
+                                            Current Balance: <span class="bal-amount fw-bold">Rs 0</span>
+                                        </span>
+                                    </label>
                                     <select name="customer_id" class="form-select select2-customer">
                                         <option value="">-- Choose Customer --</option>
                                         @foreach($customers as $c)
-                                        <option value="{{ $c->id }}">{{ $c->customer_name }}</option>
+                                        <option value="{{ $c->id }}" data-balance="{{ $c->current_balance ?? 0 }}">{{ $c->customer_name }} (Bal: Rs {{ number_format($c->current_balance ?? 0, 0) }})</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -848,11 +878,16 @@ small.text-muted {
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="form-label">Select Party <span class="text-danger">*</span></label>
+                                    <label class="form-label d-flex justify-content-between align-items-center">
+                                        <span>Select Party <span class="text-danger">*</span></span>
+                                        <span class="party-balance-badge badge bg-light text-danger border" style="display:none; font-size:11px;">
+                                            Current Balance: <span class="bal-amount fw-bold">Rs 0</span>
+                                        </span>
+                                    </label>
                                     <select name="source_id" class="form-select select2-customer" required>
                                         <option value="">-- Select Party --</option>
                                         @foreach($customers as $c)
-                                        <option value="{{ $c->id }}">{{ $c->customer_name }}</option>
+                                        <option value="{{ $c->id }}" data-balance="{{ $c->current_balance ?? 0 }}">{{ $c->customer_name }} (Bal: Rs {{ number_format($c->current_balance ?? 0, 0) }})</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -871,11 +906,16 @@ small.text-muted {
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="form-label">Select Party <span class="text-danger">*</span></label>
+                                    <label class="form-label d-flex justify-content-between align-items-center">
+                                        <span>Select Party <span class="text-danger">*</span></span>
+                                        <span class="party-balance-badge badge bg-light text-primary border" style="display:none; font-size:11px;">
+                                            Current Balance: <span class="bal-amount fw-bold">Rs 0</span>
+                                        </span>
+                                    </label>
                                     <select name="destination_id" class="form-select select2-vendor" required>
                                         <option value="">-- Select Party --</option>
                                         @foreach($vendors as $v)
-                                        <option value="{{ $v->id }}">{{ $v->name }}</option>
+                                        <option value="{{ $v->id }}" data-balance="{{ $v->current_balance ?? 0 }}">{{ $v->name }} (Bal: Rs {{ number_format($v->current_balance ?? 0, 0) }})</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -1113,6 +1153,32 @@ $(document).ready(function() {
         initSelect2();
     });
 
+    // ============== PARTY BALANCE BADGE & FORMATTING ==============
+    function formatBal(bal) {
+        bal = parseFloat(bal) || 0;
+        return 'Rs ' + bal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    }
+
+    function updateSelectedPartyBadge($select) {
+        var $wrapper = $select.closest('div');
+        var $badge = $wrapper.find('.party-balance-badge');
+        if (!$badge.length) {
+            $badge = $select.closest('.col-md-8, .col-md-6, .section-side').find('.party-balance-badge');
+        }
+        var $opt = $select.find('option:selected');
+        var bal = $opt.data('balance');
+        if ($select.val() && bal !== undefined && bal !== '') {
+            $badge.find('.bal-amount').text(formatBal(bal));
+            $badge.show();
+        } else {
+            $badge.hide();
+        }
+    }
+
+    $(document).on('change', '.select2-customer, .select2-vendor, select[name="source_id"], select[name="destination_id"]', function() {
+        updateSelectedPartyBadge($(this));
+    });
+
     // ============== PARTY TRANSFER: TYPE SWITCH ==============
     var customers = @json($customers);
     var vendors = @json($vendors);
@@ -1123,16 +1189,19 @@ $(document).ready(function() {
         $sel.empty().append('<option value="">-- Select Party --</option>');
         if (type === 'customer') {
             customers.forEach(function(c) {
-                $sel.append('<option value="' + c.id + '">' + c.customer_name + '</option>');
+                var bal = c.current_balance !== undefined ? c.current_balance : 0;
+                $sel.append('<option value="' + c.id + '" data-balance="' + bal + '">' + c.customer_name + ' (Bal: ' + formatBal(bal) + ')</option>');
             });
         } else {
             vendors.forEach(function(v) {
-                $sel.append('<option value="' + v.id + '">' + v.name + '</option>');
+                var bal = v.current_balance !== undefined ? v.current_balance : 0;
+                $sel.append('<option value="' + v.id + '" data-balance="' + bal + '">' + v.name + ' (Bal: ' + formatBal(bal) + ')</option>');
             });
         }
         if ($sel.hasClass('select2-hidden-accessible')) {
             $sel.select2('destroy').select2({ width: '100%' });
         }
+        $sel.trigger('change');
     }
 
     $(document).on('change', 'select[name="source_type"]', function() {

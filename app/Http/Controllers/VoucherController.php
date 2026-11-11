@@ -32,6 +32,21 @@ class VoucherController extends Controller
         $vendors = \App\Models\Vendor::all();
         $narrations = \App\Models\Narration::pluck('narration', 'id');
 
+        $cLedgers = DB::table('customer_ledgers as cl1')
+            ->join(DB::raw('(SELECT customer_id, MAX(id) as max_id FROM customer_ledgers GROUP BY customer_id) as cl2'), 'cl1.id', '=', 'cl2.max_id')
+            ->pluck('cl1.closing_balance', 'cl1.customer_id');
+
+        $vLedgers = DB::table('vendor_ledgers as vl1')
+            ->join(DB::raw('(SELECT vendor_id, MAX(id) as max_id FROM vendor_ledgers GROUP BY vendor_id) as vl2'), 'vl1.id', '=', 'vl2.max_id')
+            ->pluck('vl1.closing_balance', 'vl1.vendor_id');
+
+        foreach ($customers as $c) {
+            $c->current_balance = isset($cLedgers[$c->id]) ? (float)$cLedgers[$c->id] : (float)($c->opening_balance ?? 0);
+        }
+        foreach ($vendors as $v) {
+            $v->current_balance = isset($vLedgers[$v->id]) ? (float)$vLedgers[$v->id] : (float)($v->opening_balance ?? 0);
+        }
+
         $lastRvid = \App\Models\ReceiptsVoucher::latest('id')->first();
         $nextRvid = 'RVID-' . str_pad(($lastRvid ? $lastRvid->id + 1 : 1), 3, '0', STR_PAD_LEFT);
 

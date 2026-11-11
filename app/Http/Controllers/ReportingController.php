@@ -839,12 +839,13 @@ class ReportingController extends Controller
             ->whereBetween('created_at', [$start, $end])
             ->get()
             ->map(function ($r) {
+                $refundPaid = (float) ($r->cash ?? 0) + (float) ($r->card ?? 0);
                 return [
                     'date' => $r->created_at,
                     'invoice' => 'RET-' . $r->id,
                     'reference' => '-',
-                    'description' => 'Sale Return (Ref: ' . $r->sale_id . ')',
-                    'debit' => 0,
+                    'description' => 'Sale Return (Ref: ' . $r->sale_id . ')' . ($refundPaid > 0 ? ' (Refund Paid: Rs.' . $refundPaid . ')' : ''),
+                    'debit' => $refundPaid,
                     'credit' => (float) $r->total_net,
                 ];
             });
@@ -1060,13 +1061,14 @@ class ReportingController extends Controller
             ->whereBetween('created_at', [$start, $end])
             ->get()
             ->map(function ($r) {
+                $refundPaid = (float) ($r->cash ?? 0) + (float) ($r->card ?? 0);
                 return [
                     'date' => $r->created_at,
                     'sort_type' => 3, // 🔥 RETURNS AFTER PAYMENTS
                     'invoice' => 'RET-' . $r->id,
                     'reference' => $r->reference ?? '-',
-                    'description' => 'Sale Return (Ref: ' . $r->sale_id . ')',
-                    'debit' => 0,
+                    'description' => 'Sale Return (Ref: ' . $r->sale_id . ')' . ($refundPaid > 0 ? ' (Refund Paid: Rs.' . $refundPaid . ')' : ''),
+                    'debit' => $refundPaid,
                     'credit' => (float) $r->total_net,
                 ];
             });
@@ -1415,8 +1417,13 @@ class ReportingController extends Controller
         // Payments (Credit decreases)
         $payments = DB::table('customer_payments')->where('customer_id', $customerId)->sum('amount');
         
-        // Returns (Credit decreases)
-        $returns = DB::table('sales_returns')->where('customer', $customerId)->sum('total_net');
+        // Returns (Credit decreases, net of refund paid back)
+        $returns = DB::table('sales_returns')
+            ->where('customer', $customerId)
+            ->get(['total_net', 'cash', 'card'])
+            ->sum(function ($r) {
+                return (float) ($r->total_net ?? 0) - ((float) ($r->cash ?? 0) + (float) ($r->card ?? 0));
+            });
 
         // Transfer Vouchers
         $tvs = DB::table('transfer_vouchers')

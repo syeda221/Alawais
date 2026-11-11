@@ -44,10 +44,20 @@
                             </thead>
                             <tbody>
                                 @php 
-                                    $runningBalance = 0; 
+                                    $runningBalance = (float) ($ledgerOpeningBalance ?? 0); 
                                     $totalIn = 0;
                                     $totalOut = 0;
                                 @endphp
+                                @if(abs($runningBalance) >= 0.01)
+                                    <tr class="table-light fw-bold">
+                                        <td class="text-center">-</td>
+                                        <td class="text-center">-</td>
+                                        <td>Opening Balance</td>
+                                        <td class="text-center text-muted">-</td>
+                                        <td class="text-center text-muted">-</td>
+                                        <td class="text-center fw-bold">{{ number_format($runningBalance, 2) }}</td>
+                                    </tr>
+                                @endif
                                 @foreach($transactions as $index => $t)
                                     @php
                                         $in = (float)($t['in'] ?? 0);
