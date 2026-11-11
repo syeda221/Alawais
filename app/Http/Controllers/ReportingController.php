@@ -1411,12 +1411,28 @@ class ReportingController extends Controller
 
         $opening = (float)($customer->opening_balance ?? 0);
 
-        // Sales (Debit increases)
-        $sales = DB::table('sales')->where('customer', $customerId)->sum(DB::raw('total_net - (cash + card)'));
-        
-        // Payments (Credit decreases)
-        $payments = DB::table('customer_payments')->where('customer_id', $customerId)->sum('amount');
-        
+        // Sales (Debit increases, net of immediate cash/card received)
+        $sales = DB::table('sales')
+            ->where('customer', $customerId)
+            ->get(['total_net', 'cash', 'card'])
+            ->sum(function ($s) {
+                return (float) ($s->total_net ?? 0) - ((float) ($s->cash ?? 0) + (float) ($s->card ?? 0));
+            });
+
+        // Payments In / Credit Adjustments (Credit decreases)
+        $paymentsMinus = DB::table('customer_payments')
+            ->where('customer_id', $customerId)
+            ->where(function ($q) {
+                $q->where('adjustment_type', 'minus')->orWhereNull('adjustment_type');
+            })
+            ->sum('amount');
+
+        // Payments Out / Debit Adjustments (Debit increases)
+        $paymentsPlus = DB::table('customer_payments')
+            ->where('customer_id', $customerId)
+            ->where('adjustment_type', 'plus')
+            ->sum('amount');
+
         // Returns (Credit decreases, net of refund paid back)
         $returns = DB::table('sales_returns')
             ->where('customer', $customerId)
@@ -1424,6 +1440,24 @@ class ReportingController extends Controller
             ->sum(function ($r) {
                 return (float) ($r->total_net ?? 0) - ((float) ($r->cash ?? 0) + (float) ($r->card ?? 0));
             });
+
+        // Receipt Vouchers (Credit decreases)
+        $receiptVouchers = DB::table('receipts_vouchers')
+            ->where('type', 'customer')
+            ->where('party_id', $customerId)
+            ->sum('total_amount');
+
+        // Payment Vouchers (Debit increases)
+        $paymentVouchers = DB::table('payment_vouchers')
+            ->where('type', 'customer')
+            ->where('party_id', $customerId)
+            ->sum('total_amount');
+
+        // Other Income Deposits (Debit increases)
+        $otherIncomes = DB::table('other_incomes')
+            ->where('party_type', 'customer')
+            ->where('customer_id', $customerId)
+            ->sum('amount');
 
         // Transfer Vouchers
         $tvs = DB::table('transfer_vouchers')
@@ -1443,7 +1477,7 @@ class ReportingController extends Controller
             }
         }
 
-        return $opening + $sales - $payments - $returns + $tvImpact;
+        return $opening + $sales - $paymentsMinus + $paymentsPlus - $returns - $receiptVouchers + $paymentVouchers + $otherIncomes + $tvImpact;
     }
 
     private function calculateVendorBalance($vendorId)
