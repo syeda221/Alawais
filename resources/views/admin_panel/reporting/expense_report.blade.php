@@ -43,15 +43,18 @@
                                     <tbody>
                                         @php $total = 0; @endphp
                                         @forelse($expenses as $v)
+                                            @php
+                                                $rowTotal = is_numeric($v->total_amount) ? (float) $v->total_amount : 0.0;
+                                                $total += $rowTotal;
+                                            @endphp
                                             <tr>
                                                 <td>{{ $v->entry_date }}</td>
                                                 <td>{{ $v->evid }}</td>
                                                 <td>{{ $v->source_account }}</td>
                                                 <td class="text-left"><small>{{ $v->category_details }}</small></td>
-                                                <td class="font-weight-bold">Rs. {{ number_format($v->total_amount, 2) }}</td>
+                                                <td class="font-weight-bold">Rs. {{ number_format($rowTotal, 2) }}</td>
                                                 <td>{{ $v->remarks }}</td>
                                             </tr>
-                                            @php $total += $v->total_amount; @endphp
                                         @empty
                                             <tr>
                                                 <td colspan="6">No expenses found for the selected period.</td>

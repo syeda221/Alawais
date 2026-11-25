@@ -714,10 +714,10 @@ class VoucherController extends Controller
                 'type'             => 'account', 
                 'party_id'         => $request->vendor_id, 
                 'remarks'          => $request->remarks,
-                'narration_id'     => json_encode([]), 
-                'row_account_head' => json_encode($rowAccountHeads),
-                'row_account_id'   => json_encode($filtered_accounts),
-                'amount'           => json_encode($filtered_amounts),
+                'narration_id'     => [],
+                'row_account_head' => $rowAccountHeads,
+                'row_account_id'   => $filtered_accounts,
+                'amount'           => $filtered_amounts,
                 'total_amount'     => $total_amount,
             ];
 
@@ -765,11 +765,11 @@ class VoucherController extends Controller
         $voucher = \App\Models\ExpenseVoucher::findOrFail($id);
 
         // Decode JSON arrays safely
-        $narrations = json_decode($voucher->narration_id, true) ?? [];
-        $references = json_decode($voucher->reference_no, true) ?? [];
-        $accountHeads = json_decode($voucher->row_account_head, true) ?? [];
-        $accounts = json_decode($voucher->row_account_id, true) ?? [];
-        $amounts = json_decode($voucher->amount, true) ?? [];
+        $narrations = ExpenseVoucher::decodeArrayField($voucher->narration_id);
+        $references = ExpenseVoucher::decodeArrayField($voucher->reference_no);
+        $accountHeads = ExpenseVoucher::decodeArrayField($voucher->row_account_head);
+        $accounts = ExpenseVoucher::decodeArrayField($voucher->row_account_id);
+        $amounts = ExpenseVoucher::decodeArrayField($voucher->amount);
 
         // 🧾 Prepare detailed rows
         $rows = [];
@@ -992,8 +992,8 @@ class VoucherController extends Controller
         $ExpenseAccounts = \App\Models\ExpenseCategory::orderBy('title')->get();
 
         // Prepare rows for the view
-        $rowAccountIds = is_array($voucher->row_account_id) ? $voucher->row_account_id : json_decode($voucher->row_account_id, true);
-        $amounts = is_array($voucher->amount) ? $voucher->amount : json_decode($voucher->amount, true);
+        $rowAccountIds = ExpenseVoucher::decodeArrayField($voucher->row_account_id);
+        $amounts = ExpenseVoucher::decodeArrayField($voucher->amount);
         
         $rows = [];
         if ($rowAccountIds && $amounts) {
@@ -1027,8 +1027,8 @@ class VoucherController extends Controller
             }
 
             // Reverse Expense Categories
-            $oldRowAccountIds = is_array($voucher->row_account_id) ? $voucher->row_account_id : json_decode($voucher->row_account_id, true);
-            $oldAmounts = is_array($voucher->amount) ? $voucher->amount : json_decode($voucher->amount, true);
+            $oldRowAccountIds = ExpenseVoucher::decodeArrayField($voucher->row_account_id);
+            $oldAmounts = ExpenseVoucher::decodeArrayField($voucher->amount);
 
             if ($oldRowAccountIds && $oldAmounts) {
                 foreach ($oldRowAccountIds as $index => $accId) {
@@ -1120,8 +1120,8 @@ class VoucherController extends Controller
             }
 
             // 2. Reverse Expense Categories
-            $rowAccountIds = is_array($voucher->row_account_id) ? $voucher->row_account_id : json_decode($voucher->row_account_id, true);
-            $amounts = is_array($voucher->amount) ? $voucher->amount : json_decode($voucher->amount, true);
+            $rowAccountIds = ExpenseVoucher::decodeArrayField($voucher->row_account_id);
+            $amounts = ExpenseVoucher::decodeArrayField($voucher->amount);
 
             if ($rowAccountIds && $amounts) {
                 foreach ($rowAccountIds as $index => $accId) {
@@ -1181,7 +1181,7 @@ class VoucherController extends Controller
                 $partyType = $r->type_name;
                 $party = $r->type === 'vendor' ? ($r->vendor->name ?? '') : ($r->type === 'customer' ? ($r->customer->customer_name ?? '') : ($r->partyAccount->title ?? ''));
                 $cats = collect();
-                $rowAccIds = is_array($r->row_account_id) ? $r->row_account_id : (json_decode($r->row_account_id, true) ?? []);
+                $rowAccIds = ExpenseVoucher::decodeArrayField($r->row_account_id);
                 foreach ($rowAccIds as $aid) {
                     $cat = \App\Models\ExpenseCategory::find($aid);
                     if ($cat) $cats->push($cat->title);

@@ -80,40 +80,63 @@ class ExpenseVoucher extends Model
         return ucfirst($this->type);
     }
 
+    /**
+     * Safely normalize a JSON/array-cast field to a PHP array.
+     */
+    public static function decodeArrayField($value): array
+    {
+        $attempts = 0;
+        while (is_string($value) && $attempts < 3) {
+            $trimmed = trim($value);
+            if ($trimmed === '') {
+                return [];
+            }
+
+            $decoded = json_decode($trimmed, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return [];
+            }
+
+            $value = $decoded;
+            $attempts++;
+        }
+
+        return is_array($value) ? $value : [];
+    }
+
     public function getNarrationTextAttribute()
     {
-        $accIds = $this->row_account_id;
-        if (!$accIds) return 'N/A';
+        $accIds = self::decodeArrayField($this->row_account_id);
+        if (empty($accIds)) {
+            return 'N/A';
+        }
 
-        $accIds = is_array($accIds) ? $accIds : json_decode($accIds, true) ?? [];
         return Account::whereIn('id', $accIds)->pluck('title')->implode(', ');
     }
 
     public function getRowTotalAmountAttribute()
     {
-        $amounts = $this->amount;
-        $amounts = is_array($amounts) ? $amounts : json_decode($amounts, true) ?? [];
-        return array_sum($amounts);
+        $amounts = self::decodeArrayField($this->amount);
+        return array_sum(array_map(static fn ($amt) => is_numeric($amt) ? (float) $amt : 0.0, $amounts));
     }
 
     public function getRowCountAttribute()
     {
-        $amounts = $this->amount;
-        $amounts = is_array($amounts) ? $amounts : json_decode($amounts, true) ?? [];
-        return count($amounts);
+        return count(self::decodeArrayField($this->amount));
     }
 
     public function getDetailsJsonAttribute()
     {
-        $accIds = is_array($this->row_account_id) ? $this->row_account_id : json_decode($this->row_account_id, true) ?? [];
-        $amounts = is_array($this->amount) ? $this->amount : json_decode($this->amount, true) ?? [];
-        
+        $accIds = self::decodeArrayField($this->row_account_id);
+        $amounts = self::decodeArrayField($this->amount);
+
         $details = [];
         foreach ($accIds as $index => $accId) {
             $category = \App\Models\ExpenseCategory::find($accId);
+            $rawAmt = $amounts[$index] ?? 0;
             $details[] = [
                 'category' => $category->title ?? 'Unknown',
-                'amount' => $amounts[$index] ?? 0
+                'amount' => is_numeric($rawAmt) ? (float) $rawAmt : 0.0,
             ];
         }
         return $details;

@@ -1969,13 +1969,8 @@ class ReportingController extends Controller
         $expenses = ExpenseVoucher::whereBetween('entry_date', [$startDate, $endDate])->get();
         $totalExpenseAmount = 0;
         foreach ($expenses as $exp) {
-            $amounts = $exp->amount;
-            if (is_array($amounts)) {
-                $totalExpenseAmount += array_sum($amounts);
-            } else {
-                $decoded = json_decode($amounts, true);
-                if (is_array($decoded)) $totalExpenseAmount += array_sum($decoded);
-            }
+            $amounts = ExpenseVoucher::decodeArrayField($exp->amount);
+            $totalExpenseAmount += array_sum(array_map(static fn ($amt) => is_numeric($amt) ? (float) $amt : 0.0, $amounts));
         }
 
         $finalNetProfit = $netSalesProfit - $totalExpenseAmount;
@@ -2218,27 +2213,50 @@ class ReportingController extends Controller
 
     public function expense_report(Request $request)
     {
-        $start = $request->start_date ?? date('Y-m-d');
-        $end   = $request->end_date ?? date('Y-m-d');
+        $start = $request->input('start_date') ?: date('Y-m-d');
+        $end   = $request->input('end_date') ?: date('Y-m-d');
 
-        $expenses = \App\Models\ExpenseVoucher::whereBetween('entry_date', [$start, $end])
+        $expenses = ExpenseVoucher::whereDate('entry_date', '>=', $start)
+            ->whereDate('entry_date', '<=', $end)
             ->orderBy('id', 'desc')
             ->get();
 
+        $categoryTitles = DB::table('expense_categories')->pluck('title', 'id');
+        $accountTitles = DB::table('accounts')->pluck('title', 'id');
+        $vendorNames = null;
+        $customerNames = null;
+
         foreach ($expenses as $v) {
-            $accounts = json_decode($v->row_account_id, true) ?? [];
-            $amounts  = json_decode($v->amount, true) ?? [];
-            
+            $accounts = ExpenseVoucher::decodeArrayField($v->row_account_id);
+            $amounts  = ExpenseVoucher::decodeArrayField($v->amount);
+
             $details = [];
             foreach ($accounts as $idx => $accId) {
-                $category = DB::table('expense_categories')->where('id', $accId)->value('title');
-                $amt = $amounts[$idx] ?? 0;
+                $category = (is_scalar($accId) && $accId !== '') ? ($categoryTitles[$accId] ?? null) : null;
+                $rawAmt = $amounts[$idx] ?? 0;
+                $amt = is_numeric($rawAmt) ? (float) $rawAmt : 0.0;
                 $details[] = ($category ?? 'Unknown') . ': ' . number_format($amt, 2);
             }
             $v->category_details = implode(', ', $details);
 
             // Source Account
-            $v->source_account = DB::table('accounts')->where('id', $v->party_id)->value('title') ?? 'Unknown';
+            if ($v->type === 'vendor') {
+                $vendorNames ??= DB::table('vendors')->pluck('name', 'id');
+                $v->source_account = (is_scalar($v->party_id) && $v->party_id !== '')
+                    ? ($vendorNames[$v->party_id] ?? 'Unknown')
+                    : 'Unknown';
+            } elseif ($v->type === 'customer') {
+                $customerNames ??= DB::table('customers')->pluck('customer_name', 'id');
+                $v->source_account = (is_scalar($v->party_id) && $v->party_id !== '')
+                    ? ($customerNames[$v->party_id] ?? 'Unknown')
+                    : 'Unknown';
+            } elseif ($v->type === 'walkin') {
+                $v->source_account = 'Walkin Customer';
+            } else {
+                $v->source_account = (is_scalar($v->party_id) && $v->party_id !== '')
+                    ? ($accountTitles[$v->party_id] ?? 'Unknown')
+                    : 'Unknown';
+            }
         }
 
         if ($request->ajax()) {
